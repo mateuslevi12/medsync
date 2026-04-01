@@ -1,0 +1,23 @@
+# Java / Spring Boot
+target/
+*.jar
+*.class
+
+# Node.js
+node_modules/
+.next/
+.env
+
+# IDEs / Editors
+*.iml
+.idea/
+.vscode/
+
+# Docker
+*.pid
+*.seed
+docker-volumes/
+
+# Sistema
+.DS_Store
+Thumbs.db
