@@ -1,90 +1,106 @@
-# ERS - MedSync (Especificação de Requisitos de Software)
+# ERS - MedSync (2a Entrega)
 
-## 1. Introdução
+## 1. Introducao
 
 ### 1.1 Finalidade
-Este documento define os requisitos funcionais e não funcionais do sistema MedSync, servindo como referência para desenvolvimento, testes e validação da plataforma.
+Definir os requisitos implementados na segunda entrega funcional do MedSync para demonstracao academica.
 
 ### 1.2 Escopo
-O MedSync é uma plataforma distribuída de gestão hospitalar para hospitais e unidades de saúde, com foco em cadastro de usuários e pacientes, prontuário eletrônico, teletriagem e notificações.
+Esta entrega cobre:
+- usuarios
+- autenticacao JWT
+- pacientes
+- API Gateway
+- frontend inicial
 
-## 2. Descrição Geral
-O sistema seguirá arquitetura de microserviços, com frontend web e backend distribuído. Os serviços serão desacoplados, escaláveis e integrados por APIs e mensageria para garantir desempenho, disponibilidade e rastreabilidade de eventos clínicos.
+Fora de escopo nesta fase:
+- prontuario
+- triagem
+- notificacoes completas
 
-## 3. Requisitos Funcionais
-- **RF01:** O sistema deve permitir o cadastro de usuários (administrador, profissional de saúde e recepcionista).
-- **RF02:** O sistema deve permitir login de usuários autenticados.
-- **RF03:** O sistema deve permitir gerenciamento de perfis e permissões de acesso.
-- **RF04:** O sistema deve permitir o cadastro de pacientes.
-- **RF05:** O sistema deve permitir consulta de pacientes por múltiplos critérios (nome, documento, prontuário).
-- **RF06:** O sistema deve permitir atualização de dados cadastrais dos pacientes.
-- **RF07:** O sistema deve registrar e consultar histórico de atendimentos do paciente.
-- **RF08:** O sistema deve permitir criação e atualização de prontuário eletrônico.
-- **RF09:** O sistema deve registrar consultas, exames e medicamentos vinculados ao paciente.
-- **RF10:** O sistema deve realizar teletriagem conforme Protocolo de Manchester.
-- **RF11:** O sistema deve enviar notificações relacionadas a eventos de atendimento e alertas clínicos.
-- **RF12:** O sistema deve permitir localização de pacientes por status e unidade de atendimento.
-- **RF13:** O sistema deve disponibilizar informações gerais da unidade de saúde (fluxo, filas e indicadores básicos).
+## 2. Descricao Geral
+Sistema distribuido com frontend Next.js e backend em microservicos Spring Boot, acessado via API Gateway.
 
-## 4. Requisitos Não Funcionais
-- **RNF01:** O sistema deve adotar arquitetura de microserviços.
-- **RNF02:** O sistema deve utilizar autenticação baseada em JWT.
-- **RNF03:** O sistema deve disponibilizar APIs via REST e gRPC.
-- **RNF04:** O sistema deve usar Apache Kafka para comunicação assíncrona.
-- **RNF05:** O sistema deve utilizar PostgreSQL e MongoDB como bancos principais.
-- **RNF06:** O sistema deve utilizar Redis para cache e otimização de consultas.
-- **RNF07:** O ambiente deve ser executável via Docker.
-- **RNF08:** O sistema deve ser preparado para orquestração com Kubernetes.
-- **RNF09:** O sistema deve permitir monitoramento com Prometheus e Grafana.
-- **RNF10:** O sistema deve permitir centralização de logs com ELK.
-- **RNF11:** O frontend deve funcionar em navegador moderno (Chrome, Edge, Firefox e Safari em versões recentes).
+## 3. Requisitos Funcionais Implementados
+- **RF01:** cadastrar usuario (`POST /api/users`) - restrito a ADMIN.
+- **RF02:** listar usuarios (`GET /api/users`) - restrito a ADMIN.
+- **RF03:** buscar usuario por id (`GET /api/users/{id}`) - restrito a ADMIN.
+- **RF04:** autenticar usuario (`POST /api/auth/login`).
+- **RF05:** retornar JWT apos login valido.
+- **RF06:** retornar dados do usuario autenticado (`GET /api/auth/me`).
+- **RF07:** cadastrar paciente (`POST /api/patients`).
+- **RF08:** listar pacientes (`GET /api/patients`) com filtros por nome e CPF.
+- **RF09:** buscar paciente por id (`GET /api/patients/{id}`).
+- **RF10:** buscar paciente por CPF (`GET /api/patients/cpf/{cpf}`).
+- **RF11:** atualizar paciente (`PUT /api/patients/{id}`).
+- **RF12:** excluir paciente (`DELETE /api/patients/{id}`).
+- **RF13:** frontend com tela de login.
+- **RF14:** frontend com listagem e busca de pacientes.
+- **RF15:** frontend com cadastro, edicao, exclusao e visualizacao basica de paciente.
 
-## 5. Regras de Negócio
-- **RN01:** Cada usuário deve possuir perfil de acesso compatível com suas responsabilidades.
-- **RN02:** Apenas usuários autenticados podem acessar funcionalidades internas do sistema.
-- **RN03:** O cadastro de paciente deve considerar identificador único (CPF ou documento equivalente).
-- **RN04:** O prontuário do paciente só pode ser alterado por profissional de saúde autorizado.
-- **RN05:** A triagem deve obedecer a prioridade do Protocolo de Manchester (Vermelho > Laranja > Amarelo > Verde > Azul).
-- **RN06:** Eventos críticos de triagem devem gerar notificação imediata.
-- **RN07:** Registros clínicos devem manter histórico de alterações para auditoria.
-- **RN08:** Dados sensíveis de pacientes devem seguir diretrizes de segurança e privacidade.
+## 4. Requisitos Nao Funcionais
+- **RNF01:** arquitetura de microservicos.
+- **RNF02:** Java 17+ e Spring Boot.
+- **RNF03:** frontend em Next.js + TypeScript.
+- **RNF04:** autenticacao via JWT.
+- **RNF05:** usuarios e pacientes em bancos PostgreSQL separados.
+- **RNF06:** execucao local via Docker Compose.
+- **RNF07:** frontend deve consumir backend somente via gateway.
+- **RNF08:** validacoes de entrada em DTOs.
+- **RNF09:** tratamento global de excecoes em cada servico.
+- **RNF10:** seeds minimos para demo academica.
+- **RNF11:** estrutura preparada para evolucao com Kafka.
+
+## 5. Regras de Negocio
+- **RN01:** paciente nao possui login nesta versao.
+- **RN02:** somente usuarios autenticados acessam rotas protegidas.
+- **RN03:** cadastro e consulta de usuarios restritos a ADMIN.
+- **RN04:** role de usuario e obrigatoria.
+- **RN05:** email de usuario deve ser unico.
+- **RN06:** senha deve ser armazenada com hash.
+- **RN07:** cadastro de paciente exige campos obrigatorios.
+- **RN08:** `documentNumber` do paciente deve ser unico.
 
 ## 6. Atores
-- **Administrador:** gerencia usuários, perfis, parâmetros do sistema e auditoria.
-- **Profissional de Saúde:** realiza triagem, registra atendimentos e atualiza prontuários.
-- **Recepcionista:** cadastra pacientes, atualiza dados cadastrais e acompanha fluxo de atendimento.
+- **Administrador (ADMIN)**
+- **Profissional de Saude (HEALTH_PROFESSIONAL)**
+- **Recepcionista (RECEPTIONIST)**
 
-## 7. Casos de Uso
-- **UC01:** Cadastrar usuário.
-- **UC02:** Autenticar usuário.
-- **UC03:** Gerenciar perfis e permissões.
-- **UC04:** Cadastrar paciente.
-- **UC05:** Consultar paciente.
-- **UC06:** Atualizar dados do paciente.
-- **UC07:** Localizar paciente por unidade/status.
-- **UC08:** Registrar triagem de paciente.
-- **UC09:** Classificar risco (Protocolo de Manchester).
-- **UC10:** Criar prontuário eletrônico.
-- **UC11:** Atualizar prontuário eletrônico.
-- **UC12:** Registrar consulta clínica.
-- **UC13:** Registrar exames solicitados/resultados.
-- **UC14:** Registrar prescrição de medicamentos.
-- **UC15:** Enviar notificações clínicas e operacionais.
+## 7. Casos de Uso Principais
+- **UC01:** Login no sistema.
+- **UC02:** Cadastrar usuario.
+- **UC03:** Listar usuarios.
+- **UC04:** Consultar usuario por id.
+- **UC05:** Listar pacientes.
+- **UC06:** Cadastrar paciente.
+- **UC07:** Consultar paciente por id.
+- **UC08:** Consultar paciente por CPF.
+- **UC09:** Atualizar paciente.
+- **UC10:** Excluir paciente.
 
-## 8. Modelo de Dados (Entidades Principais)
-- **Usuário:** id, nome, email, senha, perfil, status, dataCriacao.
-- **Paciente:** id, nome, documento, dataNascimento, contato, endereco, unidadeAtual.
-- **Atendimento:** id, pacienteId, profissionalId, dataHora, tipo, status.
-- **Triagem:** id, atendimentoId, classificacaoRisco, sinaisVitais, observacoes, dataHora.
-- **Vacina:** id, pacienteId, nomeVacina, dose, dataAplicacao, lote.
-- **Prontuário:** id, pacienteId, evolucoes, exames, prescricoes, anexos, ultimaAtualizacao.
+## 8. Modelo de Dados (Entidades desta Entrega)
+### 8.1 User
+- id
+- name
+- email
+- password
+- role
+- createdAt
+- updatedAt
 
-## 9. Glossário
-- **API Gateway:** ponto único de entrada para os serviços de backend.
-- **JWT:** token de autenticação usado para validar sessões de usuários.
-- **Microserviço:** serviço independente com responsabilidade de domínio específica.
-- **Prontuário Eletrônico:** registro digital do histórico clínico do paciente.
-- **Teletriagem:** avaliação remota de risco clínico antes do atendimento presencial.
-- **Protocolo de Manchester:** método de classificação de risco por cores.
-- **Kafka:** plataforma de mensageria para processamento de eventos.
-- **Observabilidade:** capacidade de monitorar métricas, logs e saúde dos serviços.
+### 8.2 Patient
+- id
+- fullName
+- birthDate
+- gender
+- phone
+- documentNumber
+- address
+- createdAt
+- updatedAt
+
+## 9. Glossario
+- **API Gateway:** camada de entrada unica para roteamento.
+- **JWT:** token assinado para autenticacao stateless.
+- **DTO:** objeto de transferencia para requests/responses.
+- **Seed:** dados iniciais inseridos automaticamente na inicializacao.

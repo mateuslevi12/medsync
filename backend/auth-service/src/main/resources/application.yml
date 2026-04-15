@@ -1,0 +1,19 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  users-service-url: ${USERS_SERVICE_URL:http://localhost:8082}
+  internal-token: ${INTERNAL_SERVICE_TOKEN:medsync-internal-token}
+  jwt:
+    secret: ${JWT_SECRET:medsync-super-secret-key-for-jwt-demo-1234567890}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}

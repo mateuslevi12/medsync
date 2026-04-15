@@ -1,44 +1,52 @@
-version: '3.9'
-
 services:
-  postgres:
+  postgres-users:
     image: postgres:16-alpine
-    container_name: medsync-postgres
+    container_name: medsync-postgres-users
     environment:
-      POSTGRES_DB: medsync
+      POSTGRES_DB: users_db
       POSTGRES_USER: medsync
       POSTGRES_PASSWORD: medsync123
     ports:
-      - '5435:5432'
+      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_users_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medsync -d users_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
-  mongodb:
-    image: mongo:7
-    container_name: medsync-mongodb
+  postgres-patients:
+    image: postgres:16-alpine
+    container_name: medsync-postgres-patients
+    environment:
+      POSTGRES_DB: patients_db
+      POSTGRES_USER: medsync
+      POSTGRES_PASSWORD: medsync123
     ports:
-      - '27017:27017'
+      - "5434:5432"
     volumes:
-      - mongodb_data:/data/db
-
-  redis:
-    image: redis:7-alpine
-    container_name: medsync-redis
-    ports:
-      - '6379:6379'
+      - postgres_patients_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medsync -d patients_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: medsync-zookeeper
+    profiles: ["kafka"]
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
-      - '2181:2181'
+      - "2181:2181"
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: medsync-kafka
+    profiles: ["kafka"]
     depends_on:
       - zookeeper
     environment:
@@ -50,30 +58,84 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     ports:
-      - '9092:9092'
+      - "9092:9092"
 
-  # prometheus:
-  #   image: prom/prometheus:latest
-  #   container_name: medsync-prometheus
-  #   ports:
-  #     - '9090:9090'
-  #   volumes:
-  #     - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  users-service:
+    build:
+      context: ./backend/users-service
+    container_name: medsync-users-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres-users:5432/users_db
+      DB_USERNAME: medsync
+      DB_PASSWORD: medsync123
+      JWT_SECRET: ${JWT_SECRET:-medsync-super-secret-key-for-jwt-demo-1234567890}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-medsync-internal-token}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@medsync.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-users:
+        condition: service_healthy
 
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   container_name: medsync-grafana
-  #   ports:
-  #     - '3000:3000'
+  auth-service:
+    build:
+      context: ./backend/auth-service
+    container_name: medsync-auth-service
+    environment:
+      USERS_SERVICE_URL: http://users-service:8082
+      JWT_SECRET: ${JWT_SECRET:-medsync-super-secret-key-for-jwt-demo-1234567890}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-medsync-internal-token}
+      JWT_EXPIRATION_SECONDS: 3600
+    ports:
+      - "8081:8081"
+    depends_on:
+      - users-service
 
-  # elk:
-  #   image: sebp/elk:latest
-  #   container_name: medsync-elk
-  #   ports:
-  #     - '5601:5601' # Kibana
-  #     - '9200:9200' # Elasticsearch
-  #     - '5044:5044' # Logstash
+  patients-service:
+    build:
+      context: ./backend/patients-service
+    container_name: medsync-patients-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres-patients:5432/patients_db
+      DB_USERNAME: medsync
+      DB_PASSWORD: medsync123
+      JWT_SECRET: ${JWT_SECRET:-medsync-super-secret-key-for-jwt-demo-1234567890}
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres-patients:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+    container_name: medsync-api-gateway
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      USERS_SERVICE_URL: http://users-service:8082
+      PATIENTS_SERVICE_URL: http://patients-service:8083
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - users-service
+      - patients-service
+
+  frontend:
+    build:
+      context: ./frontend/medsync-web
+      args:
+        NEXT_PUBLIC_GATEWAY_URL: http://localhost:8080
+    container_name: medsync-frontend
+    environment:
+      NEXT_PUBLIC_GATEWAY_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
 
 volumes:
-  postgres_data:
-  mongodb_data:
+  postgres_users_data:
+  postgres_patients_data:

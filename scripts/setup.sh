@@ -20,6 +20,6 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "Iniciando serviços de infraestrutura com docker-compose..."
-docker-compose up -d
+docker-compose up -d --build
 
 echo "Serviços iniciados com sucesso."
