@@ -1,6 +1,7 @@
 package com.medsync.users.controller;
 
 import com.medsync.users.dto.CreateUserRequest;
+import com.medsync.users.dto.UpdateUserRequest;
 import com.medsync.users.dto.UserResponse;
 import com.medsync.users.service.UserService;
 import jakarta.validation.Valid;
@@ -29,7 +30,18 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public UserResponse findById(@PathVariable Long id) {
+    public UserResponse findById(@PathVariable("id") Long id) {
         return userService.findById(id);
+    }
+
+    @PutMapping("/{id}")
+    public UserResponse update(@PathVariable("id") Long id, @Valid @RequestBody UpdateUserRequest request) {
+        return userService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable("id") Long id) {
+        userService.delete(id);
     }
 }

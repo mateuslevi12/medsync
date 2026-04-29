@@ -46,9 +46,9 @@ public class UsersServiceClient {
             );
             return response.getBody();
         } catch (HttpClientErrorException.NotFound ex) {
-            throw new NotFoundException("User not found");
+            throw new NotFoundException("Usuário não encontrado");
         } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden ex) {
-            throw new UnauthorizedException("Could not validate user credentials");
+            throw new UnauthorizedException("Não foi possível validar as credenciais do usuário");
         }
     }
 }

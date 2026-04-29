@@ -12,7 +12,7 @@ public class InternalRequestValidator {
 
     public void validate(String providedToken) {
         if (providedToken == null || !providedToken.equals(internalToken)) {
-            throw new UnauthorizedException("Invalid internal token");
+            throw new UnauthorizedException("Token interno inválido");
         }
     }
 }

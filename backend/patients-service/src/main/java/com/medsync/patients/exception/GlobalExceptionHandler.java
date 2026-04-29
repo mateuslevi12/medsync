@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleDenied(AccessDeniedException ex, HttpServletRequest request) {
-        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI(), List.of());
+        return build(HttpStatus.FORBIDDEN, "Acesso negado", request.getRequestURI(), List.of());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
                 .map(this::toMessage)
                 .toList();
 
-        return build(HttpStatus.BAD_REQUEST, "Validation error", request.getRequestURI(), details);
+        return build(HttpStatus.BAD_REQUEST, "Erro de validação", request.getRequestURI(), details);
     }
 
     @ExceptionHandler(Exception.class)
@@ -47,18 +47,41 @@ public class GlobalExceptionHandler {
     }
 
     private String toMessage(FieldError error) {
-        return error.getField() + ": " + error.getDefaultMessage();
+        return traduzirCampo(error.getField()) + ": " + error.getDefaultMessage();
     }
 
     private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, String path, List<String> details) {
         ErrorResponse body = new ErrorResponse(
                 Instant.now(),
                 status.value(),
-                status.getReasonPhrase(),
+                traduzirStatus(status),
                 message,
                 path,
                 details
         );
         return ResponseEntity.status(status).body(body);
+    }
+
+    private String traduzirCampo(String campo) {
+        return switch (campo) {
+            case "fullName" -> "nomeCompleto";
+            case "birthDate" -> "dataNascimento";
+            case "gender" -> "genero";
+            case "phone" -> "telefone";
+            case "documentNumber" -> "documento";
+            case "address" -> "endereco";
+            default -> campo;
+        };
+    }
+
+    private String traduzirStatus(HttpStatus status) {
+        return switch (status) {
+            case BAD_REQUEST -> "Requisição inválida";
+            case FORBIDDEN -> "Acesso negado";
+            case NOT_FOUND -> "Não encontrado";
+            case CONFLICT -> "Conflito";
+            case INTERNAL_SERVER_ERROR -> "Erro interno do servidor";
+            default -> status.getReasonPhrase();
+        };
     }
 }

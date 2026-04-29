@@ -33,10 +33,52 @@ services:
       timeout: 5s
       retries: 10
 
+  postgres-triage:
+    image: postgres:16-alpine
+    container_name: medsync-postgres-triage
+    environment:
+      POSTGRES_DB: triage_db
+      POSTGRES_USER: medsync
+      POSTGRES_PASSWORD: medsync123
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_triage_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medsync -d triage_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres-notifications:
+    image: postgres:16-alpine
+    container_name: medsync-postgres-notifications
+    environment:
+      POSTGRES_DB: notifications_db
+      POSTGRES_USER: medsync
+      POSTGRES_PASSWORD: medsync123
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_notifications_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medsync -d notifications_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: medsync-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: medsync-zookeeper
-    profiles: ["kafka"]
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -46,7 +88,6 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: medsync-kafka
-    profiles: ["kafka"]
     depends_on:
       - zookeeper
     environment:
@@ -101,11 +142,62 @@ services:
       DB_USERNAME: medsync
       DB_PASSWORD: medsync123
       JWT_SECRET: ${JWT_SECRET:-medsync-super-secret-key-for-jwt-demo-1234567890}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "8083:8083"
     depends_on:
       postgres-patients:
         condition: service_healthy
+      redis:
+        condition: service_started
+
+  triage-service:
+    build:
+      context: ./backend/triage-service
+    container_name: medsync-triage-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres-triage:5432/triage_db
+      DB_USERNAME: medsync
+      DB_PASSWORD: medsync123
+      JWT_SECRET: ${JWT_SECRET:-medsync-super-secret-key-for-jwt-demo-1234567890}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC_TRIAGE_CREATED: triage.created
+      KAFKA_TOPIC_TRIAGE_UPDATED: triage.updated
+      KAFKA_TOPIC_TRIAGE_PRIORITY_CHANGED: triage.priority.changed
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres-triage:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  notifications-service:
+    build:
+      context: ./backend/notifications-service
+    container_name: medsync-notifications-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres-notifications:5432/notifications_db
+      DB_USERNAME: medsync
+      DB_PASSWORD: medsync123
+      JWT_SECRET: ${JWT_SECRET:-medsync-super-secret-key-for-jwt-demo-1234567890}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_CONSUMER_GROUP: notifications-service
+      KAFKA_TOPIC_TRIAGE_CREATED: triage.created
+      KAFKA_TOPIC_TRIAGE_UPDATED: triage.updated
+      KAFKA_TOPIC_TRIAGE_PRIORITY_CHANGED: triage.priority.changed
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres-notifications:
+        condition: service_healthy
+      kafka:
+        condition: service_started
 
   api-gateway:
     build:
@@ -115,6 +207,8 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8081
       USERS_SERVICE_URL: http://users-service:8082
       PATIENTS_SERVICE_URL: http://patients-service:8083
+      TRIAGE_SERVICE_URL: http://triage-service:8084
+      NOTIFICATIONS_SERVICE_URL: http://notifications-service:8085
       FRONTEND_URL: http://localhost:3000
     ports:
       - "8080:8080"
@@ -122,15 +216,16 @@ services:
       - auth-service
       - users-service
       - patients-service
+      - triage-service
+      - notifications-service
 
   frontend:
     build:
       context: ./frontend/medsync-web
-      args:
-        NEXT_PUBLIC_GATEWAY_URL: http://localhost:8080
     container_name: medsync-frontend
     environment:
-      NEXT_PUBLIC_GATEWAY_URL: http://localhost:8080
+      NODE_ENV: production
+      PORT: 3000
     ports:
       - "3000:3000"
     depends_on:
@@ -139,3 +234,6 @@ services:
 volumes:
   postgres_users_data:
   postgres_patients_data:
+  postgres_triage_data:
+  postgres_notifications_data:
+  redis_data:

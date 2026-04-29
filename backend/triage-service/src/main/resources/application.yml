@@ -1,0 +1,48 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: triage-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5435/triage_db}
+    username: ${DB_USERNAME:medsync}
+    password: ${DB_PASSWORD:medsync123}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10m
+      cache-null-values: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:medsync-super-secret-key-for-jwt-demo-1234567890}
+  kafka:
+    topics:
+      triage-created: ${KAFKA_TOPIC_TRIAGE_CREATED:triage.created}
+      triage-updated: ${KAFKA_TOPIC_TRIAGE_UPDATED:triage.updated}
+      triage-priority-changed: ${KAFKA_TOPIC_TRIAGE_PRIORITY_CHANGED:triage.priority.changed}

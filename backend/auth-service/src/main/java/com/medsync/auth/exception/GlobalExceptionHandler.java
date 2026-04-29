@@ -22,7 +22,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({UnauthorizedException.class, AccessDeniedException.class})
     public ResponseEntity<ErrorResponse> handleUnauthorized(Exception ex, HttpServletRequest request) {
-        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI(), List.of());
+        String message = ex instanceof AccessDeniedException ? "Não autorizado" : ex.getMessage();
+        return build(HttpStatus.UNAUTHORIZED, message, request.getRequestURI(), List.of());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -32,7 +33,7 @@ public class GlobalExceptionHandler {
                 .stream()
                 .map(this::toMessage)
                 .toList();
-        return build(HttpStatus.BAD_REQUEST, "Validation error", request.getRequestURI(), details);
+        return build(HttpStatus.BAD_REQUEST, "Erro de validação", request.getRequestURI(), details);
     }
 
     @ExceptionHandler(Exception.class)
@@ -41,12 +42,30 @@ public class GlobalExceptionHandler {
     }
 
     private String toMessage(FieldError error) {
-        return error.getField() + ": " + error.getDefaultMessage();
+        return traduzirCampo(error.getField()) + ": " + error.getDefaultMessage();
     }
 
     private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, String path, List<String> details) {
         return ResponseEntity.status(status).body(
-                new ErrorResponse(Instant.now(), status.value(), status.getReasonPhrase(), message, path, details)
+                new ErrorResponse(Instant.now(), status.value(), traduzirStatus(status), message, path, details)
         );
+    }
+
+    private String traduzirCampo(String campo) {
+        return switch (campo) {
+            case "email" -> "e-mail";
+            case "password" -> "senha";
+            default -> campo;
+        };
+    }
+
+    private String traduzirStatus(HttpStatus status) {
+        return switch (status) {
+            case BAD_REQUEST -> "Requisição inválida";
+            case UNAUTHORIZED -> "Não autorizado";
+            case NOT_FOUND -> "Não encontrado";
+            case INTERNAL_SERVER_ERROR -> "Erro interno do servidor";
+            default -> status.getReasonPhrase();
+        };
     }
 }

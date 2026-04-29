@@ -27,7 +27,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({UnauthorizedException.class, AccessDeniedException.class})
     public ResponseEntity<ErrorResponse> handleForbidden(Exception ex, HttpServletRequest request) {
-        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI(), List.of());
+        String message = ex instanceof AccessDeniedException ? "Acesso negado" : ex.getMessage();
+        return build(HttpStatus.FORBIDDEN, message, request.getRequestURI(), List.of());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -38,7 +39,7 @@ public class GlobalExceptionHandler {
                 .map(fieldError -> formatFieldError(fieldError))
                 .toList();
 
-        return build(HttpStatus.BAD_REQUEST, "Validation error", request.getRequestURI(), details);
+        return build(HttpStatus.BAD_REQUEST, "Erro de validação", request.getRequestURI(), details);
     }
 
     @ExceptionHandler(Exception.class)
@@ -50,7 +51,7 @@ public class GlobalExceptionHandler {
         ErrorResponse body = new ErrorResponse(
                 Instant.now(),
                 status.value(),
-                status.getReasonPhrase(),
+                traduzirStatus(status),
                 message,
                 path,
                 details
@@ -59,6 +60,27 @@ public class GlobalExceptionHandler {
     }
 
     private String formatFieldError(FieldError error) {
-        return error.getField() + ": " + error.getDefaultMessage();
+        return traduzirCampo(error.getField()) + ": " + error.getDefaultMessage();
+    }
+
+    private String traduzirCampo(String campo) {
+        return switch (campo) {
+            case "name" -> "nome";
+            case "email" -> "e-mail";
+            case "password" -> "senha";
+            case "role" -> "perfil";
+            default -> campo;
+        };
+    }
+
+    private String traduzirStatus(HttpStatus status) {
+        return switch (status) {
+            case BAD_REQUEST -> "Requisição inválida";
+            case FORBIDDEN -> "Acesso negado";
+            case NOT_FOUND -> "Não encontrado";
+            case CONFLICT -> "Conflito";
+            case INTERNAL_SERVER_ERROR -> "Erro interno do servidor";
+            default -> status.getReasonPhrase();
+        };
     }
 }

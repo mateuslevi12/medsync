@@ -1,6 +1,6 @@
-# MedSync - 2a Entrega (Computacao Distribuida)
+# MedSync - Entrega Semanas 5-6 (Computacao Distribuida)
 
-Plataforma Distribuida de Gestao Hospitalar - versao funcional inicial para demonstracao academica.
+Plataforma distribuida de gestao hospitalar com API Gateway, triagem, notificacoes assincronas, Kafka e cache distribuido com Redis.
 
 - Projeto: MedSync
 - Aluno: Mateus Levi Alencar
@@ -8,129 +8,124 @@ Plataforma Distribuida de Gestao Hospitalar - versao funcional inicial para demo
 - Disciplina: Computacao Distribuida
 
 ## Visao Geral
-Esta entrega implementa o primeiro fluxo funcional do MedSync com foco em:
+Esta entrega implementa a integracao distribuida entre frontend e microservices com:
 
 - API Gateway como ponto unico de entrada
-- Cadastro de usuarios
-- Autenticacao com JWT
-- Cadastro e consulta de pacientes
-- Frontend em Next.js consumindo apenas o gateway
+- Comunicacao assincrona via Kafka
+- Servico de triagem
+- Servico de notificacoes assincronas
+- Cache distribuido com Redis
 
-Escopo proposital desta fase:
+## Arquitetura
 
-- Inclui: `api-gateway`, `users-service`, `auth-service`, `patients-service`, frontend inicial
-- Preparado para evolucao futura: Kafka, prontuario, triagem, notificacoes, observabilidade
+```text
+frontend (Next.js :3000)
+        |
+        v
+api-gateway (:8080)
+  |-- auth-service (:8081)
+  |-- users-service (:8082)
+  |-- patients-service (:8083)
+  |-- triage-service (:8084)
+  |-- notifications-service (:8085)
 
-## Arquitetura Desta Entrega
-### Componentes
-- **Frontend (`frontend/medsync-web`)**: Next.js (App Router, TypeScript)
-- **API Gateway (`backend/api-gateway`)**: Spring Cloud Gateway
-- **Users Service (`backend/users-service`)**: cadastro/listagem de usuarios (com seed ADMIN)
-- **Auth Service (`backend/auth-service`)**: login, emissao de JWT e endpoint `/api/auth/me`
-- **Patients Service (`backend/patients-service`)**: CRUD completo de pacientes (create/list/get/update/delete) com busca por nome e CPF
-- **Bancos**:
-  - PostgreSQL `users_db` (usuarios)
-  - PostgreSQL `patients_db` (pacientes)
+Infra:
+- PostgreSQL users_db (:5433)
+- PostgreSQL patients_db (:5434)
+- PostgreSQL triage_db (:5435)
+- PostgreSQL notifications_db (:5436)
+- Redis (:6379)
+- Kafka (:9092) + Zookeeper (:2181)
+```
 
-### Decisao tecnica adotada
-O **gateway foi antecipado** nesta entrega para centralizar rotas e integração com frontend.
+## Servicos
 
-Fluxo principal:
-1. Frontend envia login para `/api/auth/login` via gateway
-2. Auth valida credenciais consultando users-service (endpoint interno protegido por token interno)
-3. Auth gera JWT
-4. Frontend usa JWT para acessar `/api/patients/**` e `/api/users/**` via gateway
-5. Users-service e patients-service validam JWT localmente com mesma chave secreta
-
-## Servicos Implementados
-### API Gateway
-Rotas:
+### API Gateway (`backend/api-gateway`)
+Roteia:
 - `/api/auth/**` -> `auth-service`
 - `/api/users/**` -> `users-service`
 - `/api/patients/**` -> `patients-service`
+- `/api/triage/**` -> `triage-service`
+- `/api/notifications/**` -> `notifications-service`
 
-Tambem possui CORS para `http://localhost:3000`.
+### Auth Service (`backend/auth-service`)
+- Login JWT
+- Endpoint `/api/auth/me`
 
-### Users Service
+### Users Service (`backend/users-service`)
+- CRUD de usuarios
+- Endpoint interno para autenticacao
+
+### Patients Service (`backend/patients-service`)
+- CRUD de pacientes
+- Busca por `id` e `cpf`
+- Cache distribuido Redis em:
+  - `GET /api/patients/{id}`
+  - `GET /api/patients/cpf/{cpf}`
+- Invalida cache em update/delete
+
+### Triage Service (`backend/triage-service`)
+- Registro e gestao de triagem
+- Priorizacao de risco (RED/ORANGE/YELLOW/GREEN/BLUE)
+- Cache Redis para fila de espera (`GET /api/triage/waiting`)
+- Publicacao de eventos Kafka:
+  - `triage.created`
+  - `triage.updated`
+  - `triage.priority.changed`
+
 Endpoints:
-- `POST /api/users` (ADMIN)
-- `GET /api/users` (ADMIN)
-- `GET /api/users/{id}` (ADMIN)
+- `POST /api/triage`
+- `GET /api/triage`
+- `GET /api/triage/waiting`
+- `GET /api/triage/{id}`
+- `PUT /api/triage/{id}`
+- `PATCH /api/triage/{id}/status`
+- `DELETE /api/triage/{id}`
 
-Recursos:
-- Entidade `User` com `id`, `name`, `email`, `password`, `role`, `createdAt`, `updatedAt`
-- `email` unico
-- senha com hash BCrypt
-- seed de usuario ADMIN
+### Notifications Service (`backend/notifications-service`)
+- Consome eventos de triagem via Kafka
+- Persiste notificacoes assincronas
+- Exposicao para frontend
 
-### Auth Service
 Endpoints:
-- `POST /api/auth/login`
-- `GET /api/auth/me`
+- `GET /api/notifications`
+- `GET /api/notifications/unread`
+- `PATCH /api/notifications/{id}/read`
+- `PATCH /api/notifications/read-all`
 
-Recursos:
-- valida email/senha
-- gera JWT
-- retorna token e dados basicos do usuario
+## Frontend (`frontend/medsync-web`)
+Telas protegidas:
+- `fila-espera`
+- `usuarios`
+- `triagem`
+- `triagem/[id]`
+- `notificacoes`
 
-### Patients Service
-Endpoints:
-- `POST /api/patients`
-- `GET /api/patients` (com filtros opcionais `?name=` e `?cpf=`)
-- `GET /api/patients/{id}`
-- `GET /api/patients/cpf/{cpf}`
-- `PUT /api/patients/{id}`
-- `DELETE /api/patients/{id}`
+Funcionalidades desta entrega:
+- Criacao e listagem de triagens
+- Atualizacao de sinais vitais/sintomas/prioridade/status
+- Listagem de notificacoes assincronas
+- Marcacao de notificacoes como lidas
+- Polling simples de notificacoes
 
-Recursos:
-- Entidade `Patient` com campos iniciais da modelagem
-- validacoes de campos obrigatorios
-- `documentNumber` unico
-- seed de pacientes para demo
+## Cache Distribuido (Redis)
 
-### Frontend (Next.js)
-Paginas:
-- `/login`
-- `/patients`
-- `/patients/new`
-- `/patients/[id]`
+- `patients-service`: cache por paciente (`id` e `cpf`), invalida em update/delete
+- `triage-service`: cache da fila de espera (`waiting`), invalida em create/update/status/delete
 
-Recursos:
-- login com email/senha
-- armazenamento simples do token (localStorage) para demo academica
-- listagem de pacientes
-- busca de pacientes por nome e CPF
-- cadastro de paciente
-- edicao de paciente
-- exclusao de paciente
-- visualizacao basica de paciente
-- consumo exclusivo do gateway via `NEXT_PUBLIC_GATEWAY_URL`
+## Mensageria (Kafka)
 
-## Portas
-- Frontend: `3000`
-- API Gateway: `8080`
-- Auth Service: `8081`
-- Users Service: `8082`
-- Patients Service: `8083`
-- PostgreSQL users: `5433`
-- PostgreSQL patients: `5434`
-- Kafka (opcional): `9092` (com profile `kafka`)
-
-## Credenciais Iniciais de Teste
-Usuario ADMIN (seed):
-- Email: `admin@medsync.com`
-- Senha: `admin123`
-- Role: `ADMIN`
+Fluxo:
+1. Triagem e alterada/criada no `triage-service`
+2. Evento e publicado em topicos Kafka
+3. `notifications-service` consome evento
+4. Notificacao e persistida e exibida no frontend
 
 ## Como Rodar
-### 1. Subir ambiente completo com Docker Compose
+
+### 1. Subir ambiente completo
 ```bash
 docker-compose up -d --build
-```
-
-Opcional para subir tambem Kafka/Zookeeper:
-```bash
-docker-compose --profile kafka up -d --build
 ```
 
 ### 2. Verificar containers
@@ -139,72 +134,47 @@ docker-compose ps
 ```
 
 ### 3. Acessar frontend
-- URL: [http://localhost:3000](http://localhost:3000)
+- [http://localhost:3000](http://localhost:3000)
 
-### 4. Fluxo de demo sugerido
-1. Abrir `/login`
-2. Entrar com `admin@medsync.com / admin123`
-3. Ir para lista de pacientes
-4. Cadastrar novo paciente
-5. Visualizar detalhes de paciente
+### 4. Credenciais iniciais
+- Email: `admin@medsync.com`
+- Senha: `admin123`
 
-## Variaveis de Ambiente
-Arquivo de exemplo na raiz:
-- `.env.example`
+## Fluxo de Demo (Semanas 5-6)
 
-Principais variaveis:
-- `JWT_SECRET`
-- `INTERNAL_SERVICE_TOKEN`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-
-No frontend:
-- `NEXT_PUBLIC_GATEWAY_URL`
-
-## Estrutura do Repositorio
-```text
-medsync/
-├── backend/
-│   ├── api-gateway/
-│   ├── auth-service/
-│   ├── users-service/
-│   └── patients-service/
-├── frontend/
-│   └── medsync-web/
-├── infra/
-│   ├── postgres/
-│   └── kafka/
-├── docs/
-├── scripts/
-├── docker-compose.yml
-└── README.md
-```
-
-## Decisoes Tecnicas Alternativas (Registradas)
-- **Validacao de JWT nos servicos de dominio** (users e patients), em vez de validar no gateway.
-  - Motivo: simplicidade e clareza para demonstracao academica nesta fase.
-- **Integracao auth -> users via endpoint interno protegido por token de servico**.
-  - Motivo: manter users como fonte de verdade de identidade sem duplicar tabela de usuarios no auth.
-
-## Limitacoes Propositais (Proxima Entrega)
-- Prontuario, triagem e notificacoes ainda nao implementados
-- Kafka apenas preparado/opcional no compose
-- Sem refresh token
-- Sem controle avancado de permissoes por recurso
-- Sem observabilidade (Prometheus/Grafana/ELK) operacional
+1. Login no frontend
+2. Cadastrar/consultar paciente
+3. Abrir tela de triagem e criar nova triagem
+4. Alterar prioridade/status da triagem
+5. Confirmar notificacoes geradas na tela de notificacoes
+6. Repetir consultas para validar cache distribuido
 
 ## Comandos Uteis
+
 Parar ambiente:
 ```bash
 docker-compose down
 ```
 
-Parar e remover volumes (reset banco local):
+Parar e remover volumes:
 ```bash
 docker-compose down -v
 ```
 
-Subir via script:
+Executar testes backend por servico:
 ```bash
-./scripts/setup.sh
+cd backend/<service> && mvn test
 ```
+
+Build frontend:
+```bash
+cd frontend/medsync-web && npm run build
+```
+
+## Entregaveis Atendidos
+
+- Sistema distribuido funcional integrado com frontend
+- Comunicacao entre microservices via API Gateway + Kafka
+- Sistema de triagem funcionando
+- Notificacoes assincronas funcionando
+- Cache distribuido com Redis

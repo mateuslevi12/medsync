@@ -9,27 +9,27 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 public record CreatePatientRequest(
-        @NotBlank(message = "fullName is required")
-        @Size(max = 150, message = "fullName must have at most 150 characters")
+        @NotBlank(message = "nome completo é obrigatório")
+        @Size(max = 150, message = "nome completo deve ter no máximo 150 caracteres")
         String fullName,
 
-        @NotNull(message = "birthDate is required")
-        @Past(message = "birthDate must be in the past")
+        @NotNull(message = "data de nascimento é obrigatória")
+        @Past(message = "data de nascimento deve ser no passado")
         LocalDate birthDate,
 
-        @NotNull(message = "gender is required")
+        @NotNull(message = "gênero é obrigatório")
         Gender gender,
 
-        @NotBlank(message = "phone is required")
-        @Size(max = 30, message = "phone must have at most 30 characters")
+        @NotBlank(message = "telefone é obrigatório")
+        @Size(max = 30, message = "telefone deve ter no máximo 30 caracteres")
         String phone,
 
-        @NotBlank(message = "documentNumber is required")
-        @Size(max = 50, message = "documentNumber must have at most 50 characters")
+        @NotBlank(message = "documento é obrigatório")
+        @Size(max = 50, message = "documento deve ter no máximo 50 caracteres")
         String documentNumber,
 
-        @NotBlank(message = "address is required")
-        @Size(max = 255, message = "address must have at most 255 characters")
+        @NotBlank(message = "endereço é obrigatório")
+        @Size(max = 255, message = "endereço deve ter no máximo 255 caracteres")
         String address
 ) {
 }

@@ -15,6 +15,7 @@ spring:
               - GET
               - POST
               - PUT
+              - PATCH
               - DELETE
               - OPTIONS
             allowedHeaders: '*'
@@ -37,6 +38,16 @@ spring:
           uri: ${PATIENTS_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/patients/**
+
+        - id: triage-service
+          uri: ${TRIAGE_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/triage/**
+
+        - id: notifications-service
+          uri: ${NOTIFICATIONS_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/notifications/**
 
 management:
   endpoints:

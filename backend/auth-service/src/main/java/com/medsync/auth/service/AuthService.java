@@ -23,7 +23,7 @@ public class AuthService {
         InternalUserResponse user = usersServiceClient.findByEmail(request.email().toLowerCase().trim());
 
         if (user == null || !passwordEncoder.matches(request.password(), user.password())) {
-            throw new UnauthorizedException("Invalid email or password");
+            throw new UnauthorizedException("E-mail ou senha inválidos");
         }
 
         String token = jwtService.generateToken(user.id(), user.name(), user.email(), user.role());
