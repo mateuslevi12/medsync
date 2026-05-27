@@ -47,5 +47,6 @@ replicas:
     count: 1
 
 patches:
-  - path: patches/configmaps.yaml
+  - path: patches/platform-config.yaml
+  - path: patches/frontend-config.yaml
   - path: patches/ingresses.yaml

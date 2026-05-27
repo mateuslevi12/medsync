@@ -49,7 +49,8 @@ replicas:
 
 patches:
   - path: patches/resources.yaml
-  - path: patches/configmaps.yaml
+  - path: patches/platform-config.yaml
+  - path: patches/frontend-config.yaml
   - path: patches/frontend-deployment.yaml
   - path: patches/kafka.yaml
   - path: patches/postgres.yaml
