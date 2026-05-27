@@ -109,7 +109,7 @@ export default function PatientsPage() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pacientes exibidos</p>
+                <p className="text-sm text-muted-foreground">Pacientes exibidoS</p>
                 <p className="mt-2 text-3xl font-semibold tracking-tight">{loading ? "--" : patients.length}</p>
               </div>
               <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
