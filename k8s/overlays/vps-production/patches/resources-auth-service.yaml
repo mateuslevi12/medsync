@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: auth-service
+          resources:
+            requests:
+              cpu: 75m
+              memory: 192Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi

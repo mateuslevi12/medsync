@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-patients
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgres-patients
+          resources:
+            requests:
+              cpu: 75m
+              memory: 192Mi
+            limits:
+              cpu: 250m
+              memory: 384Mi

@@ -49,4 +49,7 @@ replicas:
 patches:
   - path: patches/platform-config.yaml
   - path: patches/frontend-config.yaml
-  - path: patches/ingresses.yaml
+  - path: patches/ingress-frontend.yaml
+  - path: patches/ingress-api-gateway.yaml
+  - path: patches/ingress-prometheus.yaml
+  - path: patches/ingress-grafana.yaml

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-patients
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgres-patients
+          args:
+            - postgres
+            - -c
+            - hba_file=/etc/postgresql/pg_hba.conf
+          volumeMounts:
+            - name: postgres-pg-hba
+              mountPath: /etc/postgresql/pg_hba.conf
+              subPath: pg_hba.conf
+      volumes:
+        - name: postgres-pg-hba
+          configMap:
+            name: postgres-pg-hba

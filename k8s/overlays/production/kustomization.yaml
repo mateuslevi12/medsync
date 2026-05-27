@@ -45,7 +45,15 @@ replicas:
     count: 2
 
 patches:
-  - path: patches/resources.yaml
+  - path: patches/resources-frontend.yaml
+  - path: patches/resources-api-gateway.yaml
+  - path: patches/resources-auth-service.yaml
+  - path: patches/resources-patients-service.yaml
+  - path: patches/resources-triage-service.yaml
+  - path: patches/resources-notifications-service.yaml
   - path: patches/platform-config.yaml
   - path: patches/frontend-config.yaml
-  - path: patches/ingresses.yaml
+  - path: patches/ingress-frontend.yaml
+  - path: patches/ingress-api-gateway.yaml
+  - path: patches/ingress-prometheus.yaml
+  - path: patches/ingress-grafana.yaml
