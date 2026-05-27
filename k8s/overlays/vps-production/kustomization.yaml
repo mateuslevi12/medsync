@@ -1,0 +1,50 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: medsync-production
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - postgres-pg-hba-config.yaml
+
+images:
+  - name: medsync-api-gateway
+    newName: ghcr.io/your-user/medsync-api-gateway
+    newTag: vps-production
+  - name: medsync-auth-service
+    newName: ghcr.io/your-user/medsync-auth-service
+    newTag: vps-production
+  - name: medsync-users-service
+    newName: ghcr.io/your-user/medsync-users-service
+    newTag: vps-production
+  - name: medsync-patients-service
+    newName: ghcr.io/your-user/medsync-patients-service
+    newTag: vps-production
+  - name: medsync-triage-service
+    newName: ghcr.io/your-user/medsync-triage-service
+    newTag: vps-production
+  - name: medsync-notifications-service
+    newName: ghcr.io/your-user/medsync-notifications-service
+    newTag: vps-production
+  - name: medsync-frontend
+    newName: ghcr.io/your-user/medsync-frontend
+    newTag: vps-production
+
+patches:
+  - path: patches/replicas.yaml
+  - path: patches/resources.yaml
+  - path: patches/configmaps.yaml
+  - path: patches/frontend-deployment.yaml
+  - path: patches/kafka.yaml
+  - path: patches/postgres.yaml
+  - path: patches/frontend-service.yaml
+    target:
+      version: v1
+      kind: Service
+      name: frontend
+  - path: patches/api-gateway-service.yaml
+    target:
+      version: v1
+      kind: Service
+      name: api-gateway

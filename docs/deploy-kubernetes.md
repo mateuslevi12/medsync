@@ -29,6 +29,13 @@ Foram preparados dois clusters ou namespaces logicos distintos:
 
 Essa separacao reduz risco operacional e permite validar uma nova versao em staging antes de promovela manualmente para production.
 
+Tambem foi preparado um overlay especifico para uma VPS Hostinger com k3s:
+
+- `k8s/overlays/vps-production`
+- namespace `medsync-production`
+- foco em demonstracao real com recursos reduzidos
+- 1 replica por servico para caber em `2 vCPU / 8 GB RAM`
+
 ## Diferenca entre staging e production
 
 `staging`:
@@ -45,6 +52,16 @@ Essa separacao reduz risco operacional e permite validar uma nova versao em stag
 - resources maiores nesses workloads
 - hosts externos `*.production.medsync.local`
 - foco em contingencia manual e apresentacao final
+
+`vps-production`:
+
+- 1 replica para frontend, gateway, microservices e monitoramento
+- services `frontend` e `api-gateway` expostos como `LoadBalancer` no k3s
+- frontend em `http://187.127.12.230:3100`
+- API Gateway em `http://187.127.12.230:8180`
+- frontend buildado com `NEXT_PUBLIC_API_GATEWAY_URL=http://187.127.12.230:8180`
+- Kafka ajustado para single broker
+- Postgres com `pg_hba.conf` provisionado via `ConfigMap` para aceitar trafego da rede interna do cluster
 
 ## Estrutura dos manifests
 
@@ -128,6 +145,22 @@ docker build \
 
 O Dockerfile do frontend ja aceita esse `build-arg`, entao a mesma abordagem pode ser repetida para `production`.
 
+Exemplo para a VPS Hostinger:
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_API_GATEWAY_URL=http://187.127.12.230:8180 \
+  -t $REGISTRY/medsync-frontend:vps-production \
+  frontend/medsync-web
+```
+
+No GitHub Actions, o workflow `Docker Build and Push` aceita:
+
+- `release_channel=vps-production`
+- `frontend_gateway_url=http://187.127.12.230:8180`
+
+Se o input nao for informado, o workflow tenta usar a variable `VPS_PRODUCTION_API_GATEWAY_URL` e, na falta dela, cai no fallback `http://187.127.12.230:8180`.
+
 ## Publicando imagens no registry
 
 ```bash
@@ -141,6 +174,18 @@ docker push $REGISTRY/medsync-frontend:staging
 ```
 
 Repita para `production`.
+
+Para a VPS Hostinger, publique pelo menos:
+
+```bash
+docker push $REGISTRY/medsync-frontend:vps-production
+docker push $REGISTRY/medsync-api-gateway:vps-production
+docker push $REGISTRY/medsync-auth-service:vps-production
+docker push $REGISTRY/medsync-users-service:vps-production
+docker push $REGISTRY/medsync-patients-service:vps-production
+docker push $REGISTRY/medsync-triage-service:vps-production
+docker push $REGISTRY/medsync-notifications-service:vps-production
+```
 
 Depois disso, atualize os overlays para o registry real de uma destas formas:
 
@@ -218,6 +263,42 @@ kubectl logs deploy/triage-service -n medsync-production
 kubectl logs deploy/notifications-service -n medsync-production
 ```
 
+## Aplicando manifests na VPS Hostinger com k3s
+
+Primeiro renderize:
+
+```bash
+kubectl kustomize k8s/overlays/vps-production
+```
+
+Depois aplique:
+
+```bash
+kubectl apply -k k8s/overlays/vps-production
+```
+
+Validacoes iniciais:
+
+```bash
+kubectl get pods -n medsync-production
+kubectl get svc -n medsync-production
+kubectl logs deploy/frontend -n medsync-production
+kubectl logs deploy/api-gateway -n medsync-production
+kubectl logs deploy/users-service -n medsync-production
+kubectl logs deploy/postgres-users -n medsync-production
+```
+
+URLs esperadas na VPS:
+
+- frontend: [http://187.127.12.230:3100](http://187.127.12.230:3100)
+- API Gateway: [http://187.127.12.230:8180](http://187.127.12.230:8180)
+
+Observacoes do overlay:
+
+- o frontend precisa ser rebuildado com a URL publica do gateway antes do deploy
+- o `users-service` deixa de depender de ajuste manual em `pg_hba.conf`, porque o overlay monta um arquivo provisionado pelo Kubernetes
+- esse overlay assume a faixa de pods padrao do k3s (`10.42.0.0/16`) e tambem libera a faixa de services (`10.43.0.0/16`)
+
 ## Como acessar frontend, gateway, Prometheus e Grafana
 
 ### Via Ingress
@@ -254,6 +335,8 @@ kubectl port-forward svc/grafana 3001:3000 -n medsync-staging
 ```
 
 Repita trocando o namespace para `medsync-production` quando necessario.
+
+Na VPS Hostinger, o overlay `vps-production` usa `Service type=LoadBalancer` para expor o frontend e o gateway nas portas `3100` e `8180`, evitando depender de hosts como `frontend.production.medsync.local`.
 
 ## Monitoramento no Kubernetes
 

@@ -14,6 +14,11 @@ on:
         options:
           - staging
           - production
+          - vps-production
+      frontend_gateway_url:
+        description: "Sobrescreve NEXT_PUBLIC_API_GATEWAY_URL no build do frontend"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -38,9 +43,11 @@ jobs:
         env:
           REPOSITORY_OWNER: ${{ github.repository_owner }}
           WORKFLOW_RELEASE_CHANNEL: ${{ github.event.inputs.release_channel }}
+          WORKFLOW_FRONTEND_GATEWAY_URL: ${{ github.event.inputs.frontend_gateway_url }}
           REGISTRY_IMAGE_PREFIX_VAR: ${{ vars.REGISTRY_IMAGE_PREFIX }}
           STAGING_API_GATEWAY_URL_VAR: ${{ vars.STAGING_API_GATEWAY_URL }}
           PRODUCTION_API_GATEWAY_URL_VAR: ${{ vars.PRODUCTION_API_GATEWAY_URL }}
+          VPS_PRODUCTION_API_GATEWAY_URL_VAR: ${{ vars.VPS_PRODUCTION_API_GATEWAY_URL }}
         run: |
           set -euo pipefail
 
@@ -56,15 +63,23 @@ jobs:
             release_channel="${WORKFLOW_RELEASE_CHANNEL}"
           fi
 
-          if [ "$release_channel" = "production" ]; then
-            frontend_gateway_url="${PRODUCTION_API_GATEWAY_URL_VAR:-}"
-            if [ -z "$frontend_gateway_url" ]; then
-              frontend_gateway_url="http://api.production.medsync.local"
-            fi
-          else
-            frontend_gateway_url="${STAGING_API_GATEWAY_URL_VAR:-}"
-            if [ -z "$frontend_gateway_url" ]; then
-              frontend_gateway_url="http://api.staging.medsync.local"
+          frontend_gateway_url="${WORKFLOW_FRONTEND_GATEWAY_URL:-}"
+          if [ -z "$frontend_gateway_url" ]; then
+            if [ "$release_channel" = "production" ]; then
+              frontend_gateway_url="${PRODUCTION_API_GATEWAY_URL_VAR:-}"
+              if [ -z "$frontend_gateway_url" ]; then
+                frontend_gateway_url="http://api.production.medsync.local"
+              fi
+            elif [ "$release_channel" = "vps-production" ]; then
+              frontend_gateway_url="${VPS_PRODUCTION_API_GATEWAY_URL_VAR:-}"
+              if [ -z "$frontend_gateway_url" ]; then
+                frontend_gateway_url="http://187.127.12.230:8180"
+              fi
+            else
+              frontend_gateway_url="${STAGING_API_GATEWAY_URL_VAR:-}"
+              if [ -z "$frontend_gateway_url" ]; then
+                frontend_gateway_url="http://api.staging.medsync.local"
+              fi
             fi
           fi
 

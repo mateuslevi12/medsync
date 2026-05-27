@@ -88,6 +88,46 @@ Observacao de ambiente:
 - Prometheus: [http://localhost:9090](http://localhost:9090)
 - Grafana: [http://localhost:3001](http://localhost:3001)
 
+## Deploy real em VPS Hostinger com k3s
+
+O projeto tambem possui um overlay especifico para deploy real em VPS com k3s:
+
+- overlay: `k8s/overlays/vps-production`
+- namespace: `medsync-production`
+- frontend: [http://187.127.12.230:3100](http://187.127.12.230:3100)
+- API Gateway: [http://187.127.12.230:8180](http://187.127.12.230:8180)
+
+Ajustes aplicados para a VPS:
+
+- 1 replica por servico
+- resources reduzidos para VPS de `2 vCPU / 8 GB RAM`
+- frontend buildado com `NEXT_PUBLIC_API_GATEWAY_URL=http://187.127.12.230:8180`
+- `HOSTNAME=0.0.0.0` e `PORT=3000` no container do frontend
+- Kafka single-broker com configuracoes de replicacao reduzidas
+- Postgres com `pg_hba.conf` provisionado pelo Kubernetes para aceitar conexoes da rede interna do k3s (`10.42.0.0/16`)
+
+Comandos principais:
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_API_GATEWAY_URL=http://187.127.12.230:8180 \
+  -t ghcr.io/SEU_USUARIO/medsync-frontend:vps-production \
+  frontend/medsync-web
+
+kubectl apply -k k8s/overlays/vps-production
+```
+
+Build manual pelo GitHub Actions:
+
+- workflow: `Docker Build and Push`
+- `release_channel`: `vps-production`
+- `frontend_gateway_url`: `http://187.127.12.230:8180`
+- alternativa: configurar a variable `VPS_PRODUCTION_API_GATEWAY_URL`
+
+Limitacao conhecida:
+
+- este ambiente de demo usa `1 replica` por servico para caber na VPS
+
 ## Usuario padrao
 
 - e-mail: `admin@medsync.com`
