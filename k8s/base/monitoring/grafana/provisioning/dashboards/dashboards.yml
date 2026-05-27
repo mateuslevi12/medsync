@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: MedSync
+    orgId: 1
+    folder: MedSync
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

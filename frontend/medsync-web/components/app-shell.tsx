@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { clearSession, USER_KEY } from "@/lib/auth";
+import { clearSession, getStoredUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 type AppShellProps = {
@@ -44,7 +44,9 @@ function formatRole(role?: string) {
 
   if (normalized === "ADMIN") return "Administrador";
   if (normalized === "DOCTOR") return "Médico";
+  if (normalized === "HEALTH_PROFESSIONAL") return "Profissional de saúde";
   if (normalized === "NURSE") return "Enfermagem";
+  if (normalized === "RECEPTIONIST") return "Recepção";
   if (normalized === "RECEPTION") return "Recepção";
   return role || "Equipe assistencial";
 }
@@ -151,16 +153,11 @@ export function AppShell({ title, description, actions, children }: AppShellProp
   const [userRole, setUserRole] = useState("Equipe assistencial");
 
   useEffect(() => {
-    try {
-      const rawUser = localStorage.getItem(USER_KEY);
-      if (!rawUser) return;
-      const user = JSON.parse(rawUser) as { name?: string; role?: string };
-      if (user.name) setUserName(user.name);
-      if (user.role) setUserRole(formatRole(user.role));
-    } catch {
-      setUserName("Equipe MedSync");
-      setUserRole("Equipe assistencial");
-    }
+    const user = getStoredUser();
+    if (!user) return;
+
+    if (user.name) setUserName(user.name);
+    if (user.role) setUserRole(formatRole(user.role));
   }, []);
 
   function handleLogout() {

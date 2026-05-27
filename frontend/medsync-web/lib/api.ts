@@ -16,6 +16,10 @@ export interface ApiRequestOptions {
   headers?: Record<string, string>;
 }
 
+export interface ApiResponse<T> {
+  data: T;
+}
+
 interface RequestError extends Error {
   status: number;
   statusText: string;
@@ -73,6 +77,57 @@ export async function apiRequest<T>(
   return parsedData as T;
 }
 
+async function apiGet<T>(
+  path: string,
+  options: Omit<ApiRequestOptions, "method" | "body"> = {}
+): Promise<ApiResponse<T>> {
+  const data = await apiRequest<T>(path, { ...options, method: "GET" });
+  return { data };
+}
+
+async function apiPost<T>(
+  path: string,
+  body?: unknown,
+  options: Omit<ApiRequestOptions, "method" | "body"> = {}
+): Promise<ApiResponse<T>> {
+  const data = await apiRequest<T>(path, { ...options, method: "POST", body });
+  return { data };
+}
+
+async function apiPut<T>(
+  path: string,
+  body?: unknown,
+  options: Omit<ApiRequestOptions, "method" | "body"> = {}
+): Promise<ApiResponse<T>> {
+  const data = await apiRequest<T>(path, { ...options, method: "PUT", body });
+  return { data };
+}
+
+async function apiPatch<T>(
+  path: string,
+  body?: unknown,
+  options: Omit<ApiRequestOptions, "method" | "body"> = {}
+): Promise<ApiResponse<T>> {
+  const data = await apiRequest<T>(path, { ...options, method: "PATCH", body });
+  return { data };
+}
+
+async function apiDelete<T>(
+  path: string,
+  options: Omit<ApiRequestOptions, "method" | "body"> = {}
+): Promise<ApiResponse<T>> {
+  const data = await apiRequest<T>(path, { ...options, method: "DELETE" });
+  return { data };
+}
+
+export const api = {
+  get: apiGet,
+  post: apiPost,
+  put: apiPut,
+  patch: apiPatch,
+  delete: apiDelete
+};
+
 export function parseApiError(error: unknown): ApiErrorShape {
   if (
     error &&
@@ -104,3 +159,5 @@ export function parseApiError(error: unknown): ApiErrorShape {
     details: []
   };
 }
+
+export default api;

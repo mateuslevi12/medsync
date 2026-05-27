@@ -1,180 +1,130 @@
-# MedSync - Entrega Semanas 5-6 (Computacao Distribuida)
+# MedSync / HealthSys Distribuido
 
-Plataforma distribuida de gestao hospitalar com API Gateway, triagem, notificacoes assincronas, Kafka e cache distribuido com Redis.
+Plataforma distribuida de gestao hospitalar desenvolvida para a disciplina de Computacao Distribuida, com frontend web, API Gateway, microservices Spring Boot, Kafka, Redis, monitoramento, Kubernetes, CI/CD e testes de carga.
 
 - Projeto: MedSync
 - Aluno: Mateus Levi Alencar
 - Matricula: 2310315
 - Disciplina: Computacao Distribuida
 
-## Visao Geral
-Esta entrega implementa a integracao distribuida entre frontend e microservices com:
-
-- API Gateway como ponto unico de entrada
-- Comunicacao assincrona via Kafka
-- Servico de triagem
-- Servico de notificacoes assincronas
-- Cache distribuido com Redis
-
-## Arquitetura
+## Arquitetura resumida
 
 ```text
-frontend (Next.js :3000)
-        |
-        v
-api-gateway (:8080)
-  |-- auth-service (:8081)
-  |-- users-service (:8082)
-  |-- patients-service (:8083)
-  |-- triage-service (:8084)
-  |-- notifications-service (:8085)
+Frontend Next.js
+  -> API Gateway
+    -> auth-service
+    -> users-service
+    -> patients-service
+    -> triage-service
+    -> notifications-service
 
-Infra:
-- PostgreSQL users_db (:5433)
-- PostgreSQL patients_db (:5434)
-- PostgreSQL triage_db (:5435)
-- PostgreSQL notifications_db (:5436)
-- Redis (:6379)
-- Kafka (:9092) + Zookeeper (:2181)
+patients-service -> PostgreSQL + Redis
+triage-service -> PostgreSQL + Redis + Kafka
+notifications-service -> PostgreSQL + Kafka Consumer
+
+Prometheus -> Actuator dos servicos
+Grafana -> Prometheus
 ```
 
 ## Servicos
 
-### API Gateway (`backend/api-gateway`)
-Roteia:
-- `/api/auth/**` -> `auth-service`
-- `/api/users/**` -> `users-service`
-- `/api/patients/**` -> `patients-service`
-- `/api/triage/**` -> `triage-service`
-- `/api/notifications/**` -> `notifications-service`
+- `frontend/medsync-web`: interface web em Next.js
+- `backend/api-gateway`: roteamento HTTP externo
+- `backend/auth-service`: autenticacao JWT
+- `backend/users-service`: usuarios, BCrypt, seed admin
+- `backend/patients-service`: pacientes, busca por nome/CPF, cache Redis
+- `backend/triage-service`: triagem, fila de espera, publicacao Kafka
+- `backend/notifications-service`: consumo Kafka e notificacoes
 
-### Auth Service (`backend/auth-service`)
-- Login JWT
-- Endpoint `/api/auth/me`
+Infra:
 
-### Users Service (`backend/users-service`)
-- CRUD de usuarios
-- Endpoint interno para autenticacao
+- PostgreSQL por dominio
+- Redis
+- Kafka
+- Zookeeper
+- Prometheus
+- Grafana
 
-### Patients Service (`backend/patients-service`)
-- CRUD de pacientes
-- Busca por `id` e `cpf`
-- Cache distribuido Redis em:
-  - `GET /api/patients/{id}`
-  - `GET /api/patients/cpf/{cpf}`
-- Invalida cache em update/delete
+## Tecnologias
 
-### Triage Service (`backend/triage-service`)
-- Registro e gestao de triagem
-- Priorizacao de risco (RED/ORANGE/YELLOW/GREEN/BLUE)
-- Cache Redis para fila de espera (`GET /api/triage/waiting`)
-- Publicacao de eventos Kafka:
-  - `triage.created`
-  - `triage.updated`
-  - `triage.priority.changed`
+- Next.js
+- Spring Boot
+- Spring Cloud Gateway
+- PostgreSQL
+- Redis
+- Kafka
+- Prometheus
+- Grafana
+- Docker Compose
+- Kubernetes
+- GitHub Actions
+- k6
 
-Endpoints:
-- `POST /api/triage`
-- `GET /api/triage`
-- `GET /api/triage/waiting`
-- `GET /api/triage/{id}`
-- `PUT /api/triage/{id}`
-- `PATCH /api/triage/{id}/status`
-- `DELETE /api/triage/{id}`
+## Como rodar localmente
 
-### Notifications Service (`backend/notifications-service`)
-- Consome eventos de triagem via Kafka
-- Persiste notificacoes assincronas
-- Exposicao para frontend
+Subir o ambiente completo:
 
-Endpoints:
-- `GET /api/notifications`
-- `GET /api/notifications/unread`
-- `PATCH /api/notifications/{id}/read`
-- `PATCH /api/notifications/read-all`
-
-## Frontend (`frontend/medsync-web`)
-Telas protegidas:
-- `fila-espera`
-- `usuarios`
-- `triagem`
-- `triagem/[id]`
-- `notificacoes`
-
-Funcionalidades desta entrega:
-- Criacao e listagem de triagens
-- Atualizacao de sinais vitais/sintomas/prioridade/status
-- Listagem de notificacoes assincronas
-- Marcacao de notificacoes como lidas
-- Polling simples de notificacoes
-
-## Cache Distribuido (Redis)
-
-- `patients-service`: cache por paciente (`id` e `cpf`), invalida em update/delete
-- `triage-service`: cache da fila de espera (`waiting`), invalida em create/update/status/delete
-
-## Mensageria (Kafka)
-
-Fluxo:
-1. Triagem e alterada/criada no `triage-service`
-2. Evento e publicado em topicos Kafka
-3. `notifications-service` consome evento
-4. Notificacao e persistida e exibida no frontend
-
-## Como Rodar
-
-### 1. Subir ambiente completo
 ```bash
-docker-compose up -d --build
+docker compose up --build
 ```
 
-### 2. Verificar containers
+Validar o frontend isoladamente:
+
 ```bash
-docker-compose ps
+cd frontend/medsync-web
+npm ci
+npm run build
 ```
 
-### 3. Acessar frontend
-- [http://localhost:3000](http://localhost:3000)
+Observacao de ambiente:
 
-### 4. Credenciais iniciais
-- Email: `admin@medsync.com`
-- Senha: `admin123`
+- a porta `5433` precisa estar livre para o `postgres-users`
+- se `3000` estiver ocupada, libere o processo antes de subir o frontend
 
-## Fluxo de Demo (Semanas 5-6)
+## Acessos principais
 
-1. Login no frontend
-2. Cadastrar/consultar paciente
-3. Abrir tela de triagem e criar nova triagem
-4. Alterar prioridade/status da triagem
-5. Confirmar notificacoes geradas na tela de notificacoes
-6. Repetir consultas para validar cache distribuido
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- API Gateway: [http://localhost:8080](http://localhost:8080)
+- Prometheus: [http://localhost:9090](http://localhost:9090)
+- Grafana: [http://localhost:3001](http://localhost:3001)
 
-## Comandos Uteis
+## Usuario padrao
 
-Parar ambiente:
-```bash
-docker-compose down
-```
+- e-mail: `admin@medsync.com`
+- senha: `admin123`
 
-Parar e remover volumes:
-```bash
-docker-compose down -v
-```
+## Entrega Semanas 7-8
 
-Executar testes backend por servico:
-```bash
-cd backend/<service> && mvn test
-```
+Estado final da entrega:
 
-Build frontend:
-```bash
-cd frontend/medsync-web && npm run build
-```
+- base estabilizada e frontend buildando
+- monitoramento com Prometheus e Grafana
+- Kubernetes com `staging` e `production`
+- CI/CD com GitHub Actions
+- testes de carga com k6
+- documentacao final e roteiros de demonstracao
 
-## Entregaveis Atendidos
+Resultados de carga validados:
 
-- Sistema distribuido funcional integrado com frontend
-- Comunicacao entre microservices via API Gateway + Kafka
-- Sistema de triagem funcionando
-- Notificacoes assincronas funcionando
-- Cache distribuido com Redis
+- `login.js` smoke: 422 requisicoes, 0 falhas, `p95 73.35ms`, `checks 100%`
+- `full-flow.js` smoke: 98 requisicoes, 14 iteracoes, 0 falhas, `p95 75.01ms`, `checks 100%`
+
+## Documentacao
+
+Documentos principais:
+
+- [docs/monitoramento.md](docs/monitoramento.md)
+- [docs/deploy-kubernetes.md](docs/deploy-kubernetes.md)
+- [docs/ci-cd.md](docs/ci-cd.md)
+- [docs/testes-carga.md](docs/testes-carga.md)
+- [docs/entrega-final.md](docs/entrega-final.md)
+- [docs/arquitetura-final.md](docs/arquitetura-final.md)
+- [docs/roteiro-demo.md](docs/roteiro-demo.md)
+- [docs/roteiro-video.md](docs/roteiro-video.md)
+- [docs/checklist-apresentacao.md](docs/checklist-apresentacao.md)
+
+Documentos complementares:
+
+- [k8s/README.md](k8s/README.md)
+- [docs/arquitetura/documento-arquitetura.md](docs/arquitetura/documento-arquitetura.md)
+- [tests/load/README.md](tests/load/README.md)

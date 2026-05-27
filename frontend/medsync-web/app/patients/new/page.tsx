@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import api from "@/lib/api";
+import { apiRequest, parseApiError } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 
 export default function NewPatientPage() {
@@ -38,18 +38,22 @@ export default function NewPatientPage() {
     setLoading(true);
 
     try {
-      await api.post("/api/patients", {
-        fullName,
-        birthDate,
-        gender,
-        phone,
-        documentNumber,
-        address,
+      await apiRequest("/api/patients", {
+        method: "POST",
+        body: {
+          fullName,
+          birthDate,
+          gender,
+          phone,
+          documentNumber,
+          address
+        }
       });
 
       router.push("/patients");
-    } catch {
-      setError("Não foi possível cadastrar o paciente. Verifique os dados.");
+    } catch (rawError) {
+      const parsed = parseApiError(rawError);
+      setError(parsed.message || "Não foi possível cadastrar o paciente. Verifique os dados.");
     } finally {
       setLoading(false);
     }

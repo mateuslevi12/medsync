@@ -79,6 +79,16 @@ export default function ProtectedLayout({
 
         <nav className="grid gap-2">
           <Link
+            href="/patients"
+            className={`rounded-md border px-3 py-2 text-sm transition ${
+              pathname.startsWith("/patients")
+                ? "border-blue-500 bg-blue-600 text-white"
+                : "border-slate-600 text-slate-200 hover:bg-slate-800"
+            }`}
+          >
+            Pacientes
+          </Link>
+          <Link
             href="/fila-espera"
             className={`rounded-md border px-3 py-2 text-sm transition ${
               pathname === "/fila-espera"

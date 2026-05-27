@@ -1,24 +1,10 @@
-export const TOKEN_KEY = "medsync_token";
-export const USER_KEY = "medsync_user";
+import { clearSession, getToken, persistSession } from "./session";
 
-export function getToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  return localStorage.getItem(TOKEN_KEY);
-}
+export const TOKEN_KEY = "medsync.token";
+export const USER_KEY = "medsync.user";
+
+export { clearSession, getToken };
 
 export function saveToken(token: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearSession(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  persistSession({ token, user: null });
 }

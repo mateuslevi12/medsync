@@ -8,7 +8,7 @@ import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import api from "@/lib/api";
+import { apiRequest, parseApiError } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import {
   formatPatientDate,
@@ -52,10 +52,11 @@ export default function PatientDetailsPage() {
 
     async function loadPatient() {
       try {
-        const response = await api.get<Patient>(`/api/patients/${params.id}`);
-        setPatient(response.data);
-      } catch {
-        setError("Paciente não encontrado ou acesso negado.");
+        const response = await apiRequest<Patient>(`/api/patients/${params.id}`);
+        setPatient(response);
+      } catch (rawError) {
+        const parsed = parseApiError(rawError);
+        setError(parsed.message || "Paciente não encontrado ou acesso negado.");
       } finally {
         setLoading(false);
       }

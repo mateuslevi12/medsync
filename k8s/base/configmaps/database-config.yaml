@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-config
+data:
+  DB_URL_USERS: jdbc:postgresql://postgres-users:5432/users_db
+  DB_URL_PATIENTS: jdbc:postgresql://postgres-patients:5432/patients_db
+  DB_URL_TRIAGE: jdbc:postgresql://postgres-triage:5432/triage_db
+  DB_URL_NOTIFICATIONS: jdbc:postgresql://postgres-notifications:5432/notifications_db
+  POSTGRES_DB_USERS: users_db
+  POSTGRES_DB_PATIENTS: patients_db
+  POSTGRES_DB_TRIAGE: triage_db
+  POSTGRES_DB_NOTIFICATIONS: notifications_db

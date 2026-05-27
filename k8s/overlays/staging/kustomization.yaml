@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: medsync-staging
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+images:
+  - name: medsync-api-gateway
+    newName: ghcr.io/your-user/medsync-api-gateway
+    newTag: staging
+  - name: medsync-auth-service
+    newName: ghcr.io/your-user/medsync-auth-service
+    newTag: staging
+  - name: medsync-users-service
+    newName: ghcr.io/your-user/medsync-users-service
+    newTag: staging
+  - name: medsync-patients-service
+    newName: ghcr.io/your-user/medsync-patients-service
+    newTag: staging
+  - name: medsync-triage-service
+    newName: ghcr.io/your-user/medsync-triage-service
+    newTag: staging
+  - name: medsync-notifications-service
+    newName: ghcr.io/your-user/medsync-notifications-service
+    newTag: staging
+  - name: medsync-frontend
+    newName: ghcr.io/your-user/medsync-frontend
+    newTag: staging
+
+patches:
+  - path: patches/replicas.yaml
+  - path: patches/configmaps.yaml
+  - path: patches/ingresses.yaml

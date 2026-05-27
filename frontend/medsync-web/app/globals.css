@@ -3,12 +3,87 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --primary: 193 80% 37%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 205 33% 92%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 30% 95%;
+    --muted-foreground: 215 16% 39%;
+    --accent: 191 55% 92%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 86%;
+    --input: 214 32% 86%;
+    --ring: 193 80% 37%;
+    --sidebar: 210 45% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 193 80% 37%;
+    --sidebar-accent: 191 55% 92%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 86%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+    --primary: 191 84% 63%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 201 45% 16%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 24% 24%;
+    --input: 217 24% 24%;
+    --ring: 191 84% 63%;
+    --sidebar: 222 47% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 191 84% 63%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 24% 24%;
+  }
+
   * {
-    @apply box-border;
+    @apply box-border border-border;
   }
 
   html,
   body {
-    @apply m-0 p-0;
+    @apply m-0 min-h-full p-0;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at top, rgba(14, 165, 233, 0.10), transparent 36%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(240, 249, 255, 0.88));
+    @apply min-h-screen bg-background text-foreground;
+  }
+
+  .dark body {
+    background:
+      radial-gradient(circle at top, rgba(34, 211, 238, 0.12), transparent 32%),
+      linear-gradient(180deg, rgba(2, 6, 23, 0.96), rgba(15, 23, 42, 0.92));
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
+  }
+
+  .surface-card {
+    @apply rounded-3xl border border-border/70 bg-background/80 shadow-soft backdrop-blur-xl;
+  }
+
+  .metric-card {
+    @apply rounded-3xl border border-border/70 bg-background/75 shadow-soft backdrop-blur-xl;
   }
 }

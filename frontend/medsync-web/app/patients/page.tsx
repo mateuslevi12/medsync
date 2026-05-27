@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import api from "@/lib/api";
+import { apiRequest, parseApiError } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { formatPatientDocument, formatPatientPhone } from "@/lib/patient";
 
@@ -53,10 +53,11 @@ export default function PatientsPage() {
 
       const queryString = params.toString();
       const url = queryString ? `/api/patients?${queryString}` : "/api/patients";
-      const response = await api.get<Patient[]>(url);
-      setPatients(response.data);
-    } catch {
-      setError("Não foi possível carregar pacientes.");
+      const response = await apiRequest<Patient[]>(url);
+      setPatients(response);
+    } catch (rawError) {
+      const parsed = parseApiError(rawError);
+      setError(parsed.message || "Não foi possível carregar pacientes.");
     } finally {
       setLoading(false);
     }
@@ -80,10 +81,11 @@ export default function PatientsPage() {
     }
 
     try {
-      await api.delete(`/api/patients/${id}`);
+      await apiRequest<void>(`/api/patients/${id}`, { method: "DELETE" });
       await loadPatients(nameFilter, cpfFilter);
-    } catch {
-      setError("Não foi possível excluir o paciente.");
+    } catch (rawError) {
+      const parsed = parseApiError(rawError);
+      setError(parsed.message || "Não foi possível excluir o paciente.");
     }
   }
 

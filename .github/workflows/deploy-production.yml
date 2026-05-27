@@ -1,0 +1,109 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag das imagens a aplicar no production"
+        required: true
+        default: production
+        type: string
+      registry_image_prefix:
+        description: "Prefixo opcional do registry, ex.: ghcr.io/org"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Apply Production Overlay
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+
+      - name: Configure kubeconfig
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.kube"
+          if printf '%s' "$KUBE_CONFIG_DATA" | base64 --decode > "$HOME/.kube/config" 2>/dev/null; then
+            :
+          else
+            printf '%s' "$KUBE_CONFIG_DATA" > "$HOME/.kube/config"
+          fi
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Validate cluster context
+        run: |
+          kubectl config current-context
+          kubectl cluster-info
+
+      - name: Prepare production overlay
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          INPUT_REGISTRY_IMAGE_PREFIX: ${{ inputs.registry_image_prefix }}
+          REGISTRY_IMAGE_PREFIX_VAR: ${{ vars.REGISTRY_IMAGE_PREFIX }}
+          PRODUCTION_API_GATEWAY_URL_VAR: ${{ vars.PRODUCTION_API_GATEWAY_URL }}
+          PRODUCTION_FRONTEND_URL_VAR: ${{ vars.PRODUCTION_FRONTEND_URL }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          workspace="/tmp/medsync-k8s"
+          rm -rf "$workspace"
+          cp -R k8s "$workspace"
+
+          overlay_dir="$workspace/overlays/production"
+
+          image_prefix="${INPUT_REGISTRY_IMAGE_PREFIX:-}"
+          if [ -z "$image_prefix" ]; then
+            image_prefix="${REGISTRY_IMAGE_PREFIX_VAR:-}"
+          fi
+          if [ -z "$image_prefix" ]; then
+            owner="$(echo "${REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+            image_prefix="ghcr.io/${owner}"
+          fi
+          image_prefix="${image_prefix%/}"
+
+          sed -i "s#ghcr.io/your-user#${image_prefix}#g" "$overlay_dir/kustomization.yaml"
+          sed -i "s/newTag: production/newTag: ${IMAGE_TAG}/g" "$overlay_dir/kustomization.yaml"
+
+          api_gateway_url="${PRODUCTION_API_GATEWAY_URL_VAR:-}"
+          if [ -n "$api_gateway_url" ]; then
+            sed -i "s#http://api.production.medsync.local#${api_gateway_url}#g" "$overlay_dir/patches/configmaps.yaml"
+          fi
+
+          frontend_url="${PRODUCTION_FRONTEND_URL_VAR:-}"
+          if [ -n "$frontend_url" ]; then
+            sed -i "s#http://frontend.production.medsync.local#${frontend_url}#g" "$overlay_dir/patches/configmaps.yaml"
+          fi
+
+          kubectl kustomize "$overlay_dir" > /tmp/medsync-production-rendered.yaml
+
+      - name: Apply production manifests
+        run: kubectl apply -k /tmp/medsync-k8s/overlays/production
+
+      - name: Validate rollouts
+        run: |
+          set -euo pipefail
+          for deployment in api-gateway frontend auth-service users-service patients-service triage-service notifications-service; do
+            kubectl rollout status "deployment/${deployment}" -n medsync-production --timeout=240s
+          done
+
+      - name: List production pods
+        run: kubectl get pods -n medsync-production -o wide

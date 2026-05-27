@@ -1,0 +1,37 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: medsync-production
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+images:
+  - name: medsync-api-gateway
+    newName: ghcr.io/your-user/medsync-api-gateway
+    newTag: production
+  - name: medsync-auth-service
+    newName: ghcr.io/your-user/medsync-auth-service
+    newTag: production
+  - name: medsync-users-service
+    newName: ghcr.io/your-user/medsync-users-service
+    newTag: production
+  - name: medsync-patients-service
+    newName: ghcr.io/your-user/medsync-patients-service
+    newTag: production
+  - name: medsync-triage-service
+    newName: ghcr.io/your-user/medsync-triage-service
+    newTag: production
+  - name: medsync-notifications-service
+    newName: ghcr.io/your-user/medsync-notifications-service
+    newTag: production
+  - name: medsync-frontend
+    newName: ghcr.io/your-user/medsync-frontend
+    newTag: production
+
+patches:
+  - path: patches/replicas.yaml
+  - path: patches/resources.yaml
+  - path: patches/configmaps.yaml
+  - path: patches/ingresses.yaml

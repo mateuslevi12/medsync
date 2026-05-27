@@ -1,0 +1,60 @@
+name: Load Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL do API Gateway para o smoke test"
+        required: true
+        default: https://api.staging.medsync.local
+        type: string
+      script:
+        description: "Script do k6 a executar"
+        required: true
+        default: full-flow.js
+        type: choice
+        options:
+          - login.js
+          - patients.js
+          - triage.js
+          - notifications.js
+          - full-flow.js
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-load-test:
+    name: Smoke Load Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure results directory exists
+        run: mkdir -p tests/load/results
+
+      - name: Run k6 smoke test
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          LOAD_PROFILE: smoke
+          MEDSYNC_EMAIL: ${{ secrets.MEDSYNC_LOADTEST_EMAIL }}
+          MEDSYNC_PASSWORD: ${{ secrets.MEDSYNC_LOADTEST_PASSWORD }}
+          SCRIPT_NAME: ${{ inputs.script }}
+        run: |
+          docker run --rm \
+            -e BASE_URL \
+            -e LOAD_PROFILE \
+            -e MEDSYNC_EMAIL \
+            -e MEDSYNC_PASSWORD \
+            -v "$PWD:/work" \
+            -w /work \
+            grafana/k6:latest run \
+            --summary-export "tests/load/results/${SCRIPT_NAME%.js}-summary.json" \
+            "tests/load/${SCRIPT_NAME}"
+
+      - name: Upload k6 summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-summary
+          path: tests/load/results/*.json

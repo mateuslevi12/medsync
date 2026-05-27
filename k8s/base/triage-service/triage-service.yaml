@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: triage-service
+  labels:
+    app.kubernetes.io/name: triage-service
+    app.kubernetes.io/part-of: medsync
+spec:
+  ports:
+    - name: http
+      port: 8084
+      targetPort: 8084
+  selector:
+    app.kubernetes.io/name: triage-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triage-service
+  labels:
+    app.kubernetes.io/name: triage-service
+    app.kubernetes.io/part-of: medsync
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: triage-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: triage-service
+        app.kubernetes.io/part-of: medsync
+    spec:
+      containers:
+        - name: triage-service
+          image: medsync-triage-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+              name: http
+          env:
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: database-config
+                  key: DB_URL_TRIAGE
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-secrets
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: application-secrets
+                  key: JWT_SECRET
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: REDIS_PORT
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_TOPIC_TRIAGE_CREATED
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: KAFKA_TOPIC_TRIAGE_CREATED
+            - name: KAFKA_TOPIC_TRIAGE_UPDATED
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: KAFKA_TOPIC_TRIAGE_UPDATED
+            - name: KAFKA_TOPIC_TRIAGE_PRIORITY_CHANGED
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: KAFKA_TOPIC_TRIAGE_PRIORITY_CHANGED
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi

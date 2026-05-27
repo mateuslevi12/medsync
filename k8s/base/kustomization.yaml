@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmaps/platform-config.yaml
+  - configmaps/database-config.yaml
+  - configmaps/frontend-config.yaml
+  - secrets/application-secrets.yaml
+  - secrets/database-secrets.yaml
+  - postgres/postgres-users.yaml
+  - postgres/postgres-patients.yaml
+  - postgres/postgres-triage.yaml
+  - postgres/postgres-notifications.yaml
+  - redis/redis.yaml
+  - zookeeper/zookeeper.yaml
+  - kafka/kafka.yaml
+  - api-gateway/api-gateway.yaml
+  - auth-service/auth-service.yaml
+  - users-service/users-service.yaml
+  - patients-service/patients-service.yaml
+  - triage-service/triage-service.yaml
+  - notifications-service/notifications-service.yaml
+  - frontend/frontend.yaml
+  - monitoring/prometheus/prometheus.yaml
+  - monitoring/grafana/grafana.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: prometheus-config
+    files:
+      - monitoring/prometheus/prometheus.yml
+  - name: grafana-datasources
+    files:
+      - monitoring/grafana/provisioning/datasources/datasource.yml
+  - name: grafana-dashboards-provider
+    files:
+      - monitoring/grafana/provisioning/dashboards/dashboards.yml
+  - name: grafana-dashboard-medsync
+    files:
+      - monitoring/grafana/dashboards/medsync-overview.json

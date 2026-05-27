@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-config
+data:
+  AUTH_SERVICE_URL: http://auth-service:8081
+  USERS_SERVICE_URL: http://users-service:8082
+  PATIENTS_SERVICE_URL: http://patients-service:8083
+  TRIAGE_SERVICE_URL: http://triage-service:8084
+  NOTIFICATIONS_SERVICE_URL: http://notifications-service:8085
+  FRONTEND_URL: http://frontend.medsync.local
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_CONSUMER_GROUP: notifications-service
+  KAFKA_TOPIC_TRIAGE_CREATED: triage.created
+  KAFKA_TOPIC_TRIAGE_UPDATED: triage.updated
+  KAFKA_TOPIC_TRIAGE_PRIORITY_CHANGED: triage.priority.changed

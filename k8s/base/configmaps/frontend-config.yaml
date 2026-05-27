@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+data:
+  NEXT_PUBLIC_API_GATEWAY_URL: http://api.medsync.local
+  NODE_ENV: production

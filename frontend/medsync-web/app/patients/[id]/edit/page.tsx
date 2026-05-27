@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import api from "@/lib/api";
+import { apiRequest, parseApiError } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { formatPatientDocument, formatPatientPhone } from "@/lib/patient";
 
@@ -47,16 +47,16 @@ export default function EditPatientPage() {
 
     async function loadPatient() {
       try {
-        const response = await api.get<Patient>(`/api/patients/${params.id}`);
-        const patient = response.data;
+        const patient = await apiRequest<Patient>(`/api/patients/${params.id}`);
         setFullName(patient.fullName);
         setBirthDate(patient.birthDate);
         setGender(patient.gender);
         setPhone(patient.phone);
         setDocumentNumber(patient.documentNumber);
         setAddress(patient.address);
-      } catch {
-        setError("Não foi possível carregar os dados do paciente.");
+      } catch (rawError) {
+        const parsed = parseApiError(rawError);
+        setError(parsed.message || "Não foi possível carregar os dados do paciente.");
       } finally {
         setLoadingPatient(false);
       }
@@ -71,18 +71,22 @@ export default function EditPatientPage() {
     setLoading(true);
 
     try {
-      await api.put(`/api/patients/${params.id}`, {
-        fullName,
-        birthDate,
-        gender,
-        phone,
-        documentNumber,
-        address,
+      await apiRequest(`/api/patients/${params.id}`, {
+        method: "PUT",
+        body: {
+          fullName,
+          birthDate,
+          gender,
+          phone,
+          documentNumber,
+          address
+        }
       });
 
       router.push(`/patients/${params.id}`);
-    } catch {
-      setError("Não foi possível atualizar o paciente. Verifique os dados.");
+    } catch (rawError) {
+      const parsed = parseApiError(rawError);
+      setError(parsed.message || "Não foi possível atualizar o paciente. Verifique os dados.");
     } finally {
       setLoading(false);
     }
