@@ -30,8 +30,21 @@ images:
     newName: ghcr.io/your-user/medsync-frontend
     newTag: production
 
+replicas:
+  - name: frontend
+    count: 2
+  - name: api-gateway
+    count: 2
+  - name: auth-service
+    count: 2
+  - name: patients-service
+    count: 2
+  - name: triage-service
+    count: 2
+  - name: notifications-service
+    count: 2
+
 patches:
-  - path: patches/replicas.yaml
   - path: patches/resources.yaml
   - path: patches/configmaps.yaml
   - path: patches/ingresses.yaml
