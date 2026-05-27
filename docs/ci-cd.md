@@ -11,6 +11,8 @@ Os pipelines foram desenhados para:
 - aplicar os overlays Kubernetes de `medsync-staging` e `medsync-production`
 - manter secrets fora do repositorio
 
+No estado atual da entrega academica, o CI trata backend como validacao de build/compilacao. Os testes funcionais e de integracao ficam cobertos pela execucao do ambiente via Docker Compose e pelos fluxos de carga com k6.
+
 ## Workflows criados
 
 - `.github/workflows/ci.yml`
@@ -62,7 +64,7 @@ Frontend:
 
 Backend:
 
-- `mvn -B test` para:
+- `mvn -B -DskipTests package` para:
   - `backend/api-gateway`
   - `backend/auth-service`
   - `backend/users-service`
@@ -70,12 +72,35 @@ Backend:
   - `backend/triage-service`
   - `backend/notifications-service`
 
+Racional:
+
+- os servicos `triage-service` e `notifications-service` possuem `contextLoads` com dependencias reais de Kafka, PostgreSQL, Redis e variaveis externas
+- no runner padrao do GitHub Actions essa infraestrutura nao existe nem esta mockada
+- por isso o criterio principal no CI ficou sendo compilacao empacotada com Maven, enquanto a validacao funcional ocorre no ambiente integrado
+
 Infra:
 
 - `docker compose config`
 - `kubectl kustomize k8s/base`
 - `kubectl kustomize k8s/overlays/staging`
 - `kubectl kustomize k8s/overlays/production`
+- `kubectl kustomize k8s/overlays/vps-production`
+
+## Testes fora do job de backend
+
+Os testes que hoje validam comportamento real do sistema sao:
+
+- smoke e fluxos completos com k6 em `tests/load`
+- validacao do ambiente integrado com Docker Compose
+- observabilidade via Prometheus e Grafana durante a execucao
+
+Os `contextLoads` dos servicos que dependem de infraestrutura externa nao sao usados como criterio principal do CI nesta entrega, porque o pipeline nao sobe Kafka, PostgreSQL e Redis nem usa mocks equivalentes.
+
+Evolucao futura recomendada:
+
+- Testcontainers para PostgreSQL, Redis e Kafka
+- profile `test` com mocks/stubs controlados
+- separacao clara entre testes unitarios, integracao e smoke
 
 ## Como configurar GHCR
 

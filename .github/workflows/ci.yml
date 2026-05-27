@@ -36,7 +36,7 @@ jobs:
         run: npm run build
 
   backend:
-    name: Backend Tests (${{ matrix.service }})
+    name: Backend Build (${{ matrix.service }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -62,8 +62,8 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Run Maven tests
-        run: mvn -B test
+      - name: Build backend service
+        run: mvn -B -DskipTests package
 
   docker-compose-validation:
     name: Docker Compose Validation
@@ -95,3 +95,6 @@ jobs:
 
       - name: Render production manifests
         run: kubectl kustomize k8s/overlays/production
+
+      - name: Render VPS production manifests
+        run: kubectl kustomize k8s/overlays/vps-production

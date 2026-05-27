@@ -144,6 +144,13 @@ Estado final da entrega:
 - testes de carga com k6
 - documentacao final e roteiros de demonstracao
 
+Observacao sobre CI:
+
+- o workflow `CI` valida `npm run build` no frontend
+- no backend, o CI valida build/compilacao com `mvn -B -DskipTests package`
+- os testes funcionais e de integracao sao executados no ambiente integrado via Docker Compose e nos scripts k6
+- os `contextLoads` de servicos com Kafka/PostgreSQL/Redis nao sao usados como criterio principal no CI porque dependem de infraestrutura externa nao mockada
+
 Resultados de carga validados:
 
 - `login.js` smoke: 422 requisicoes, 0 falhas, `p95 73.35ms`, `checks 100%`
