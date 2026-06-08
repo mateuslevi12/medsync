@@ -1,6 +1,6 @@
 # MedSync / HealthSys Distribuido
 
-Plataforma distribuida de gestao hospitalar desenvolvida para a disciplina de Computacao Distribuida, com frontend web, API Gateway, microservices Spring Boot, Kafka, Redis, monitoramento, Kubernetes, CI/CD e testes de carga.
+Plataforma distribuida de gestao hospitalar desenvolvida para a disciplina de Computacao Distribuida. O projeto combina frontend Next.js, API Gateway, microservices Spring Boot, Kafka, Redis, MongoDB, observabilidade, Docker Compose, Kubernetes, CI/CD e testes de carga.
 
 - Projeto: MedSync
 - Aluno: Mateus Levi Alencar
@@ -16,11 +16,13 @@ Frontend Next.js
     -> users-service
     -> patients-service
     -> triage-service
+    -> medical-record-service
     -> notifications-service
 
 patients-service -> PostgreSQL + Redis
-triage-service -> PostgreSQL + Redis + Kafka
-notifications-service -> PostgreSQL + Kafka Consumer
+triage-service -> PostgreSQL + Kafka producer
+medical-record-service -> MongoDB + Kafka consumer
+notifications-service -> PostgreSQL + Kafka consumer
 
 Prometheus -> Actuator dos servicos
 Grafana -> Prometheus
@@ -28,44 +30,76 @@ Grafana -> Prometheus
 
 ## Servicos
 
-- `frontend/medsync-web`: interface web em Next.js
+- `frontend/medsync-web`: interface web e fallback demo
 - `backend/api-gateway`: roteamento HTTP externo
 - `backend/auth-service`: autenticacao JWT
-- `backend/users-service`: usuarios, BCrypt, seed admin
-- `backend/patients-service`: pacientes, busca por nome/CPF, cache Redis
-- `backend/triage-service`: triagem, fila de espera, publicacao Kafka
-- `backend/notifications-service`: consumo Kafka e notificacoes
+- `backend/users-service`: usuarios e perfis
+- `backend/patients-service`: pacientes, CNS, alergias, vacinas e cache Redis
+- `backend/triage-service`: fila ambulatorial, acolhimento, atendimento medico, persistencia legado/compatibilidade e publicacao Kafka
+- `backend/medical-record-service`: prontuario longitudinal em MongoDB, timeline clinica e resumo para dashboard
+- `backend/notifications-service`: consumo Kafka e notificacoes persistidas
 
 Infra:
 
 - PostgreSQL por dominio
 - Redis
-- Kafka
-- Zookeeper
+- MongoDB
+- Kafka + Zookeeper
 - Prometheus
 - Grafana
 
-## Tecnologias
+## Fluxo hospitalar real implementado
 
-- Next.js
-- Spring Boot
-- Spring Cloud Gateway
-- PostgreSQL
-- Redis
-- Kafka
-- Prometheus
-- Grafana
-- Docker Compose
-- Kubernetes
-- GitHub Actions
-- k6
+O frontend redesenhado agora opera com persistencia real no fluxo central:
+
+`Paciente -> fila ambulatorial -> acolhimento -> atendimento medico -> prontuario/timeline -> notificacoes`
+
+Principais endpoints publicos:
+
+- `GET|POST /api/ambulatory/queue`
+- `GET /api/ambulatory/queue/{id}`
+- `PATCH /api/ambulatory/queue/{id}/call-triage`
+- `PATCH /api/ambulatory/queue/{id}/complete-triage`
+- `PATCH /api/ambulatory/queue/{id}/call-medical`
+- `PATCH /api/ambulatory/queue/{id}/finish-medical`
+- `GET /api/medical-records/patient/{patientId}`
+- `GET /api/medical-records/patient/{patientId}/timeline`
+- `POST /api/medical-records/patient/{patientId}/triage-records`
+- `POST /api/medical-records/patient/{patientId}/medical-attendances`
+- `POST /api/medical-records/patient/{patientId}/timeline-events`
+- `GET /api/medical-records/summary`
+- `GET|POST|DELETE /api/patients/{patientId}/allergies`
+- `GET|POST|PUT /api/patients/{patientId}/vaccines`
+
+## Frontend e modo demo
+
+O frontend opera em dois modos:
+
+- `NEXT_PUBLIC_DEMO_MODE=true`: usa dados demo/localStorage
+- `NEXT_PUBLIC_DEMO_MODE=false`: usa API real via Gateway
+
+Rotas que agora tentam carregar dados reais primeiro:
+
+- `/dashboard`
+- `/monitoramento`
+- `/relatorios`
+- `/fila-atendimento`
+- `/acolhimento/[id]`
+- `/atendimento-medico/[id]`
+- `/patients`
+- `/patients/[id]`
+- `/patients/[id]/record`
+- `/patients/[id]/timeline`
+- `/notificacoes`
+
+Se a API falhar e o demo estiver ativo, a UI cai para fallback demo. Se o token estiver invalido, o layout protegido redireciona para `/login` em vez de manter cards zerados com sessao quebrada.
 
 ## Como rodar localmente
 
 Subir o ambiente completo:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 Validar o frontend isoladamente:
@@ -76,10 +110,26 @@ npm ci
 npm run build
 ```
 
-Observacao de ambiente:
+Validar os servicos alterados via Maven em container:
 
-- a porta `5433` precisa estar livre para o `postgres-users`
-- se `3000` estiver ocupada, libere o processo antes de subir o frontend
+```bash
+docker run --rm -v "$PWD/backend/api-gateway:/app" -w /app maven:3.9.9-eclipse-temurin-17 mvn -B -DskipTests package
+docker run --rm -v "$PWD/backend/triage-service:/app" -w /app maven:3.9.9-eclipse-temurin-17 mvn -B -DskipTests package
+docker run --rm -v "$PWD/backend/medical-record-service:/app" -w /app maven:3.9.9-eclipse-temurin-17 mvn -B -DskipTests package
+```
+
+Executar o smoke de carga do fluxo completo:
+
+```bash
+docker run --rm -i \
+  -v "$PWD/tests/load:/scripts" \
+  grafana/k6 run \
+  -e BASE_URL=http://host.docker.internal:8080 \
+  -e MEDSYNC_EMAIL=admin@medsync.com \
+  -e MEDSYNC_PASSWORD=admin123 \
+  -e LOAD_PROFILE=smoke \
+  /scripts/full-flow.js
+```
 
 ## Acessos principais
 
@@ -90,90 +140,46 @@ Observacao de ambiente:
 
 ## Deploy real em VPS Hostinger com k3s
 
-O projeto tambem possui um overlay especifico para deploy real em VPS com k3s:
+O projeto possui um overlay especifico para deploy real em VPS com k3s:
 
 - overlay: `k8s/overlays/vps-production`
 - namespace: `medsync-production`
 - frontend: [http://187.127.12.230:3100](http://187.127.12.230:3100)
 - API Gateway: [http://187.127.12.230:8180](http://187.127.12.230:8180)
 
-Ajustes aplicados para a VPS:
-
-- 1 replica por servico
-- resources reduzidos para VPS de `2 vCPU / 8 GB RAM`
-- frontend buildado com `NEXT_PUBLIC_API_GATEWAY_URL=http://187.127.12.230:8180`
-- `HOSTNAME=0.0.0.0` e `PORT=3000` no container do frontend
-- Kafka single-broker com configuracoes de replicacao reduzidas
-- Postgres com `pg_hba.conf` provisionado pelo Kubernetes para aceitar conexoes da rede interna do k3s (`10.42.0.0/16`)
-
-Comandos principais:
-
-```bash
-docker build \
-  --build-arg NEXT_PUBLIC_API_GATEWAY_URL=http://187.127.12.230:8180 \
-  -t ghcr.io/SEU_USUARIO/medsync-frontend:vps-production \
-  frontend/medsync-web
-
-kubectl apply -k k8s/overlays/vps-production
-```
-
-Build manual pelo GitHub Actions:
-
-- workflow: `Docker Build and Push`
-- `release_channel`: `vps-production`
-- `frontend_gateway_url`: `http://187.127.12.230:8180`
-- alternativa: configurar a variable `VPS_PRODUCTION_API_GATEWAY_URL`
-
-Limitacao conhecida:
-
-- este ambiente de demo usa `1 replica` por servico para caber na VPS
-
 ## Usuario padrao
 
 - e-mail: `admin@medsync.com`
 - senha: `admin123`
 
-## Entrega Semanas 7-8
+## Limitacoes atuais
 
-Estado final da entrega:
-
-- base estabilizada e frontend buildando
-- monitoramento com Prometheus e Grafana
-- Kubernetes com `staging` e `production`
-- CI/CD com GitHub Actions
-- testes de carga com k6
-- documentacao final e roteiros de demonstracao
-
-Observacao sobre CI:
-
-- o workflow `CI` valida `npm run build` no frontend
-- no backend, o CI valida build/compilacao com `mvn -B -DskipTests package`
-- os testes funcionais e de integracao sao executados no ambiente integrado via Docker Compose e nos scripts k6
-- os `contextLoads` de servicos com Kafka/PostgreSQL/Redis nao sao usados como criterio principal no CI porque dependem de infraestrutura externa nao mockada
-
-Resultados de carga validados:
-
-- `login.js` smoke: 422 requisicoes, 0 falhas, `p95 73.35ms`, `checks 100%`
-- `full-flow.js` smoke: 98 requisicoes, 14 iteracoes, 0 falhas, `p95 75.01ms`, `checks 100%`
+- o prontuario longitudinal entregue cobre o fluxo ambulatorial, mas ainda nao e um modulo clinico completo com exames estruturados, internacao, anexos e historico multiprofissional amplo
+- o `triage-service` continua guardando snapshot relacional local por compatibilidade enquanto o `medical-record-service` e a fonte principal de `/api/medical-records/**`
+- `dashboard`, `monitoramento` e `relatorios` agora usam dados reais, mas os botoes de exportacao ainda sao placeholders de UX
+- a consistencia entre fila, notificacoes e prontuario e near-real-time via REST interno + Kafka, nao uma transacao distribuida unica
+- o fluxo legado `/api/triage` continua ativo por compatibilidade
 
 ## Documentacao
 
 Documentos principais:
 
+- [docs/frontend.md](docs/frontend.md)
+- [docs/fluxo-hospitalar.md](docs/fluxo-hospitalar.md)
+- [docs/entrega-final.md](docs/entrega-final.md)
+- [docs/validacao-final-fluxo-hospitalar.md](docs/validacao-final-fluxo-hospitalar.md)
+- [docs/arquitetura-final.md](docs/arquitetura-final.md)
 - [docs/monitoramento.md](docs/monitoramento.md)
 - [docs/deploy-kubernetes.md](docs/deploy-kubernetes.md)
 - [docs/ci-cd.md](docs/ci-cd.md)
 - [docs/testes-carga.md](docs/testes-carga.md)
-- [docs/entrega-final.md](docs/entrega-final.md)
-- [docs/arquitetura-final.md](docs/arquitetura-final.md)
 - [docs/roteiro-demo.md](docs/roteiro-demo.md)
 - [docs/roteiro-video.md](docs/roteiro-video.md)
 - [docs/checklist-apresentacao.md](docs/checklist-apresentacao.md)
+- [docs/auditoria-ficha-avaliacao.md](docs/auditoria-ficha-avaliacao.md)
 
 Documentos complementares:
 
 - [k8s/README.md](k8s/README.md)
 - [docs/arquitetura/documento-arquitetura.md](docs/arquitetura/documento-arquitetura.md)
 - [tests/load/README.md](tests/load/README.md)
-
-oiii

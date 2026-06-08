@@ -28,6 +28,11 @@ scrape_configs:
     static_configs:
       - targets: ["triage-service:8084"]
 
+  - job_name: "medical-record-service"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["medical-record-service:8086"]
+
   - job_name: "notifications-service"
     metrics_path: /actuator/prometheus
     static_configs:

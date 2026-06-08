@@ -2,17 +2,37 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, ChevronRight, LogOut, Menu, PlusCircle, ShieldCheck, Users2, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Badge } from "@/components/ui/badge";
+import {
+  Activity,
+  Bell,
+  Building2,
+  ChevronRight,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Settings,
+  ShieldCheck,
+  Stethoscope,
+  Users,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { clearSession, getStoredUser } from "@/lib/session";
+import { getUnreadNotifications } from "@/services/notifications";
+import { isDemoModeEnabled } from "@/services/runtime";
 import { cn } from "@/lib/utils";
 
+type BreadcrumbItem = {
+  label: string;
+  href?: string;
+};
+
 type AppShellProps = {
-  title: string;
+  title?: string;
   description?: string;
+  breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
   children: React.ReactNode;
 };
@@ -20,22 +40,73 @@ type AppShellProps = {
 type NavigationItem = {
   title: string;
   href: string;
-  caption: string;
   icon: React.ComponentType<{ className?: string }>;
+  badge?: number;
+  match: (pathname: string) => boolean;
 };
 
 const navigation: NavigationItem[] = [
   {
-    title: "Pacientes",
-    href: "/patients",
-    caption: "Listagem e busca clínica",
-    icon: Users2,
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    match: (pathname) => pathname === "/dashboard",
   },
   {
-    title: "Novo cadastro",
-    href: "/patients/new",
-    caption: "Admissão assistida",
-    icon: PlusCircle,
+    title: "Ambulatorial",
+    href: "/ambulatorial",
+    icon: Building2,
+    match: (pathname) => pathname.startsWith("/ambulatorial"),
+  },
+  {
+    title: "Fila de Atendimento",
+    href: "/fila-atendimento",
+    icon: Stethoscope,
+    match: (pathname) =>
+      pathname.startsWith("/fila-atendimento") ||
+      pathname.startsWith("/fila-espera") ||
+      pathname.startsWith("/acolhimento") ||
+      pathname.startsWith("/atendimento-medico") ||
+      pathname.startsWith("/triagem"),
+  },
+  {
+    title: "Pacientes",
+    href: "/patients",
+    icon: Users,
+    match: (pathname) => pathname.startsWith("/patients"),
+  },
+  {
+    title: "Notificações",
+    href: "/notificacoes",
+    icon: Bell,
+    match: (pathname) => pathname.startsWith("/notificacoes"),
+  },
+  {
+    title: "Usuários",
+    href: "/usuarios",
+    icon: ShieldCheck,
+    match: (pathname) => pathname.startsWith("/usuarios"),
+  },
+  {
+    title: "Monitoramento",
+    href: "/monitoramento",
+    icon: Activity,
+    match: (pathname) => pathname.startsWith("/monitoramento"),
+  },
+  {
+    title: "Relatórios",
+    href: "/relatorios",
+    icon: FileText,
+    match: (pathname) => pathname.startsWith("/relatorios"),
+  },
+];
+
+const secondaryNavigation: NavigationItem[] = [
+  {
+    title: "Configurações",
+    href: "/configuracoes",
+    icon: Settings,
+    match: (pathname) => pathname.startsWith("/configuracoes"),
   },
 ];
 
@@ -44,100 +115,125 @@ function formatRole(role?: string) {
 
   if (normalized === "ADMIN") return "Administrador";
   if (normalized === "DOCTOR") return "Médico";
+  if (normalized === "NURSE") return "Enfermeiro";
   if (normalized === "HEALTH_PROFESSIONAL") return "Profissional de saúde";
-  if (normalized === "NURSE") return "Enfermagem";
-  if (normalized === "RECEPTIONIST") return "Recepção";
-  if (normalized === "RECEPTION") return "Recepção";
+  if (normalized === "RECEPTIONIST" || normalized === "RECEPTION") return "Recepção";
   return role || "Equipe assistencial";
+}
+
+function defaultBreadcrumbs(pathname: string, title?: string): BreadcrumbItem[] {
+  const labelMap: Record<string, string> = {
+    dashboard: "Dashboard",
+    ambulatorial: "Ambulatorial",
+    "fila-atendimento": "Fila de Atendimento",
+    "fila-espera": "Fila de Atendimento",
+    acolhimento: "Acolhimento",
+    "atendimento-medico": "Atendimento Médico",
+    patients: "Pacientes",
+    record: "Prontuário",
+    timeline: "Timeline",
+    triagem: "Triagem",
+    notificacoes: "Notificações",
+    usuarios: "Usuários",
+    monitoramento: "Monitoramento",
+    relatorios: "Relatórios",
+    configuracoes: "Configurações",
+    new: "Novo",
+    edit: "Editar",
+  };
+
+  const segments = pathname.split("/").filter(Boolean);
+  const items: BreadcrumbItem[] = segments.map((segment, index) => ({
+    label: labelMap[segment] || segment,
+    href: `/${segments.slice(0, index + 1).join("/")}`,
+  }));
+
+  if (!items.length && title) {
+    return [{ label: title }];
+  }
+
+  if (title && items[items.length - 1]?.label !== title) {
+    items.push({ label: title });
+  }
+
+  return items;
 }
 
 type SidebarContentProps = {
   pathname: string;
   userName: string;
   userRole: string;
+  notificationCount: number;
   onNavigate?: () => void;
   onLogout: () => void;
 };
 
-function SidebarContent({ pathname, userName, userRole, onNavigate, onLogout }: SidebarContentProps) {
+function SidebarContent({ pathname, userName, userRole, notificationCount, onNavigate, onLogout }: SidebarContentProps) {
+  const navigationWithBadge = navigation.map((item) =>
+    item.href === "/notificacoes"
+      ? {
+          ...item,
+          badge: notificationCount,
+        }
+      : item
+  );
+
+  function renderLink(item: NavigationItem) {
+    const Icon = item.icon;
+    const active = item.match(pathname);
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onNavigate}
+        className={cn(
+          "flex h-9 items-center justify-between rounded-lg px-3 text-[14px] font-medium transition-colors",
+          active ? "bg-primary text-white" : "text-foreground hover:bg-[#EEF4FF]"
+        )}
+      >
+        <span className="flex items-center gap-3">
+          <Icon className="size-4" />
+          {item.title}
+        </span>
+        {item.badge ? (
+          <span
+            className={cn(
+              "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
+              active ? "bg-white/20 text-white" : "bg-[#EF4444] text-white"
+            )}
+          >
+            {item.badge}
+          </span>
+        ) : null}
+      </Link>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-sidebar-border/70 px-6 py-6">
-        <div className="flex items-center gap-4">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-sidebar-primary/10 text-sidebar-primary shadow-soft">
-            <Activity className="size-6" />
+      <div className="border-b border-border px-4 py-4">
+        <Link href="/dashboard" className="flex items-center gap-3" onClick={onNavigate}>
+          <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white">
+            M
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight text-sidebar-foreground">MedSync</h1>
-              <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Online</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">Gestão hospitalar distribuída</p>
+            <p className="text-[20px] font-bold leading-6 text-foreground">MedSync</p>
+            <p className="text-xs text-muted-foreground">HealthSys Distribuído</p>
           </div>
-        </div>
+        </Link>
       </div>
 
-      <div className="px-4 py-5">
-        <Badge variant="secondary" className="mb-4 w-fit bg-sidebar-accent text-sidebar-accent-foreground">
-          Ambiente assistencial seguro
-        </Badge>
-        <nav className="space-y-2">
-          {navigation.map((item) => {
-            const isPatientsRoute = item.href === "/patients" && pathname.startsWith("/patients") && !pathname.startsWith("/patients/new");
-            const isNewRoute = item.href === "/patients/new" && pathname.startsWith("/patients/new");
-            const isActive = isPatientsRoute || isNewRoute;
-            const Icon = item.icon;
+      <nav className="flex-1 space-y-1 px-2 py-4">{navigationWithBadge.map(renderLink)}</nav>
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  "group flex items-center justify-between rounded-2xl border px-4 py-3 transition-all duration-200",
-                  isActive
-                    ? "border-sidebar-primary/20 bg-sidebar-primary/10 text-sidebar-primary shadow-soft"
-                    : "border-transparent text-sidebar-foreground/80 hover:border-sidebar-border hover:bg-sidebar-accent"
-                )}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className={cn("flex size-10 items-center justify-center rounded-2xl", isActive ? "bg-sidebar-primary/15" : "bg-muted/80") }>
-                    <Icon className="size-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{item.title}</p>
-                    <p className="truncate text-xs text-muted-foreground">{item.caption}</p>
-                  </div>
-                </div>
-                <ChevronRight className="size-4 opacity-60 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      <div className="mt-auto space-y-4 px-4 pb-5">
-        <div className="rounded-3xl border border-sidebar-border/70 bg-sidebar-accent/70 p-4">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-sidebar-primary/10 text-sidebar-primary">
-              <ShieldCheck className="size-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-sidebar-foreground">Operação monitorada</p>
-              <p className="text-xs text-muted-foreground">Conformidade e rastreabilidade ativas</p>
-            </div>
-          </div>
-          <p className="text-sm leading-6 text-muted-foreground">
-            A interface foi organizada para navegação rápida, leitura clara dos dados e sensação de ambiente clínico profissional.
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-sidebar-border/70 bg-background/70 p-4 backdrop-blur-xl">
-          <p className="text-sm font-semibold text-sidebar-foreground">{userName}</p>
+      <div className="border-t border-border px-2 py-4">
+        <div className="space-y-1">{secondaryNavigation.map(renderLink)}</div>
+        <div className="mt-4 rounded-xl border border-border bg-white p-3">
+          <p className="truncate text-[14px] font-semibold text-foreground">{userName}</p>
           <p className="text-xs text-muted-foreground">{userRole}</p>
-          <Button variant="outline" className="mt-4 w-full justify-start" onClick={onLogout}>
+          <Button variant="outline" size="sm" className="mt-3 w-full justify-start" onClick={onLogout}>
             <LogOut className="size-4" />
-            Sair do sistema
+            Sair
           </Button>
         </div>
       </div>
@@ -145,12 +241,13 @@ function SidebarContent({ pathname, userName, userRole, onNavigate, onLogout }: 
   );
 }
 
-export function AppShell({ title, description, actions, children }: AppShellProps) {
+export function AppShell({ title, description, breadcrumbs, actions, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [userName, setUserName] = useState("Equipe MedSync");
-  const [userRole, setUserRole] = useState("Equipe assistencial");
+  const [userName, setUserName] = useState("Ana Ribeiro");
+  const [userRole, setUserRole] = useState("Administrador");
+  const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
     const user = getStoredUser();
@@ -160,64 +257,143 @@ export function AppShell({ title, description, actions, children }: AppShellProp
     if (user.role) setUserRole(formatRole(user.role));
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadNotifications() {
+      try {
+        const unread = await getUnreadNotifications({ demo: isDemoModeEnabled() });
+        if (mounted) {
+          setNotificationCount(unread.length);
+        }
+      } catch {
+        if (mounted) {
+          setNotificationCount(0);
+        }
+      }
+    }
+
+    void loadNotifications();
+
+    return () => {
+      mounted = false;
+    };
+  }, [pathname]);
+
+  const breadcrumbItems = useMemo(
+    () => (breadcrumbs && breadcrumbs.length ? breadcrumbs : defaultBreadcrumbs(pathname, title)),
+    [breadcrumbs, pathname, title]
+  );
+
   function handleLogout() {
     clearSession();
     router.push("/login");
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-[320px] border-r border-sidebar-border/70 bg-sidebar lg:flex lg:flex-col">
-          <SidebarContent pathname={pathname} userName={userName} userRole={userRole} onLogout={handleLogout} />
+    <div className="min-h-screen bg-background text-foreground">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[216px] border-r border-border bg-white lg:block">
+        <SidebarContent
+          pathname={pathname}
+          userName={userName}
+          userRole={userRole}
+          notificationCount={notificationCount}
+          onLogout={handleLogout}
+        />
+      </aside>
+
+      <div
+        className={cn(
+          "fixed inset-0 z-50 bg-slate-950/35 transition-opacity lg:hidden",
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+      >
+        <aside
+          className={cn(
+            "absolute left-0 top-0 h-full w-[216px] border-r border-border bg-white transition-transform",
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="flex items-center justify-end p-2">
+            <Button variant="ghost" size="icon" aria-label="Fechar menu" onClick={() => setMobileOpen(false)}>
+              <X className="size-5" />
+            </Button>
+          </div>
+          <SidebarContent
+            pathname={pathname}
+            userName={userName}
+            userRole={userRole}
+            notificationCount={notificationCount}
+            onNavigate={() => setMobileOpen(false)}
+            onLogout={handleLogout}
+          />
         </aside>
+      </div>
 
-        <div className={cn("fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm transition-all lg:hidden", mobileOpen ? "opacity-100" : "pointer-events-none opacity-0")}>
-          <aside className={cn("absolute left-0 top-0 h-full w-[88vw] max-w-[320px] border-r border-sidebar-border/70 bg-sidebar shadow-2xl transition-transform duration-300", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
-            <div className="flex items-center justify-end p-4">
-              <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} aria-label="Fechar navegação">
-                <X className="size-5" />
+      <div className="lg:pl-[216px]">
+        <header className="sticky top-0 z-30 h-[52px] border-b border-border bg-white">
+          <div className="flex h-full items-center justify-between px-4 lg:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden"
+                aria-label="Abrir menu"
+                onClick={() => setMobileOpen(true)}
+              >
+                <Menu className="size-5" />
               </Button>
-            </div>
-            <SidebarContent
-              pathname={pathname}
-              userName={userName}
-              userRole={userRole}
-              onNavigate={() => setMobileOpen(false)}
-              onLogout={handleLogout}
-            />
-          </aside>
-        </div>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-2xl">
-            <div className="page-shell flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-start gap-3 md:items-center">
-                <Button variant="outline" size="icon" className="lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Abrir navegação">
-                  <Menu className="size-5" />
-                </Button>
-                <div>
-                  <div className="mb-1 flex items-center gap-2">
-                    <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">
-                      Sistema hospitalar
-                    </Badge>
+              <nav className="flex min-w-0 items-center gap-2 overflow-hidden text-[13px] text-muted-foreground">
+                {breadcrumbItems.map((item, index) => (
+                  <div key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
+                    {index > 0 ? <ChevronRight className="size-3.5 shrink-0 text-[#94A3B8]" /> : null}
+                    {item.href && index < breadcrumbItems.length - 1 ? (
+                      <Link href={item.href} className="truncate text-primary hover:underline">
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <span className="truncate text-foreground">{item.label}</span>
+                    )}
                   </div>
-                  <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-                  {description ? <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
-                </div>
-              </div>
+                ))}
+              </nav>
+            </div>
 
-              <div className="flex flex-wrap items-center gap-3 self-start md:self-center">
-                <ThemeToggle />
-                {actions}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="relative inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[#EEF4FF] hover:text-foreground"
+              >
+                <Bell className="size-4" />
+                {notificationCount ? (
+                  <span className="absolute right-0 top-0 inline-flex size-4 items-center justify-center rounded-full bg-[#EF4444] text-[10px] font-bold text-white">
+                    {notificationCount}
+                  </span>
+                ) : null}
+              </button>
+              <div className="hidden text-right md:block">
+                <p className="text-[11px] leading-4 text-muted-foreground">Unidade</p>
+                <p className="text-[14px] font-semibold leading-5 text-foreground">HOSP. MUN. MONSENHOR DOURADO</p>
+              </div>
+              <div className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+                AR
               </div>
             </div>
-          </header>
+          </div>
+        </header>
 
-          <main className="flex-1">
-            <div className="page-shell space-y-6">{children}</div>
-          </main>
-        </div>
+        <main className="page-shell">
+          {title || description || actions ? (
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                {title ? <h1 className="text-[24px] font-bold leading-8 text-foreground">{title}</h1> : null}
+                {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+              </div>
+              {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
+            </div>
+          ) : null}
+          {children}
+        </main>
       </div>
     </div>
   );

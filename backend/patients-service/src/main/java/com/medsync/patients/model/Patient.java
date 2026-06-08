@@ -37,6 +37,9 @@ public class Patient {
     @Column(nullable = false, length = 50)
     private String documentNumber;
 
+    @Column(length = 50)
+    private String cns;
+
     @Column(nullable = false, length = 255)
     private String address;
 

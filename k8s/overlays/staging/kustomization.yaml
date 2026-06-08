@@ -23,6 +23,9 @@ images:
   - name: medsync-triage-service
     newName: ghcr.io/your-user/medsync-triage-service
     newTag: staging
+  - name: medsync-medical-record-service
+    newName: ghcr.io/your-user/medsync-medical-record-service
+    newTag: staging
   - name: medsync-notifications-service
     newName: ghcr.io/your-user/medsync-notifications-service
     newTag: staging
@@ -42,6 +45,8 @@ replicas:
   - name: patients-service
     count: 1
   - name: triage-service
+    count: 1
+  - name: medical-record-service
     count: 1
   - name: notifications-service
     count: 1

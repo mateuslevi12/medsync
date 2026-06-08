@@ -1,0 +1,11 @@
+package com.medsync.medicalrecords.model;
+
+public enum TimelineEventType {
+    PACIENTE_INCLUIDO_FILA,
+    TRIAGEM_INICIADA,
+    TRIAGEM_FINALIZADA,
+    ENCAMINHADO_MEDICO,
+    ATENDIMENTO_MEDICO_INICIADO,
+    ATENDIMENTO_MEDICO_FINALIZADO,
+    NOTIFICACAO_GERADA
+}

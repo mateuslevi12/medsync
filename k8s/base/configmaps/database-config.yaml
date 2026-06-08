@@ -7,6 +7,8 @@ data:
   DB_URL_PATIENTS: jdbc:postgresql://postgres-patients:5432/patients_db
   DB_URL_TRIAGE: jdbc:postgresql://postgres-triage:5432/triage_db
   DB_URL_NOTIFICATIONS: jdbc:postgresql://postgres-notifications:5432/notifications_db
+  MONGODB_URI: mongodb://mongodb:27017/medsync_records
+  MONGODB_DATABASE: medsync_records
   POSTGRES_DB_USERS: users_db
   POSTGRES_DB_PATIENTS: patients_db
   POSTGRES_DB_TRIAGE: triage_db

@@ -85,12 +85,14 @@ jobs:
 
           api_gateway_url="${STAGING_API_GATEWAY_URL_VAR:-}"
           if [ -n "$api_gateway_url" ]; then
-            sed -i "s#http://api.staging.medsync.local#${api_gateway_url}#g" "$overlay_dir/patches/configmaps.yaml"
+            api_gateway_host="${api_gateway_url#http://}"
+            api_gateway_host="${api_gateway_host#https://}"
+            sed -i "s#api.staging.medsync.local#${api_gateway_host}#g" "$overlay_dir/patches/ingress-api-gateway.yaml"
           fi
 
           frontend_url="${STAGING_FRONTEND_URL_VAR:-}"
           if [ -n "$frontend_url" ]; then
-            sed -i "s#http://frontend.staging.medsync.local#${frontend_url}#g" "$overlay_dir/patches/configmaps.yaml"
+            sed -i "s#http://frontend.staging.medsync.local#${frontend_url}#g" "$overlay_dir/patches/platform-config.yaml"
           fi
 
           kubectl kustomize "$overlay_dir" > /tmp/medsync-staging-rendered.yaml
@@ -101,7 +103,7 @@ jobs:
       - name: Validate rollouts
         run: |
           set -euo pipefail
-          for deployment in api-gateway frontend auth-service users-service patients-service triage-service notifications-service; do
+          for deployment in api-gateway frontend auth-service users-service patients-service triage-service medical-record-service notifications-service; do
             kubectl rollout status "deployment/${deployment}" -n medsync-staging --timeout=180s
           done
 

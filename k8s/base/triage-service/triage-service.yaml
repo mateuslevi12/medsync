@@ -59,6 +59,11 @@ spec:
                 secretKeyRef:
                   name: application-secrets
                   key: JWT_SECRET
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: application-secrets
+                  key: INTERNAL_SERVICE_TOKEN
             - name: REDIS_HOST
               valueFrom:
                 configMapKeyRef:
@@ -89,6 +94,16 @@ spec:
                 configMapKeyRef:
                   name: platform-config
                   key: KAFKA_TOPIC_TRIAGE_PRIORITY_CHANGED
+            - name: KAFKA_TOPIC_AMBULATORY_FLOW
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: KAFKA_TOPIC_AMBULATORY_FLOW
+            - name: MEDICAL_RECORDS_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: MEDICAL_RECORDS_SERVICE_URL
           readinessProbe:
             httpGet:
               path: /actuator/health

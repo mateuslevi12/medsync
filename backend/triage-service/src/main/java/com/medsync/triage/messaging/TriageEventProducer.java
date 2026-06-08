@@ -26,6 +26,9 @@ public class TriageEventProducer {
     @Value("${app.kafka.topics.triage-priority-changed}")
     private String triagePriorityChangedTopic;
 
+    @Value("${app.kafka.topics.ambulatory-flow}")
+    private String ambulatoryFlowTopic;
+
     public void publishCreated(Triage triage) {
         publish(
                 triageCreatedTopic,
@@ -68,6 +71,31 @@ public class TriageEventProducer {
                         "status", triage.getStatus()
                 )
         );
+    }
+
+    public void publishAmbulatoryFlow(
+            String eventType,
+            Long attendanceId,
+            Long patientId,
+            String patientName,
+            String title,
+            String description
+    ) {
+        EventEnvelope envelope = EventEnvelope.builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType(eventType)
+                .aggregateId(String.valueOf(attendanceId))
+                .occurredAt(Instant.now())
+                .payload(Map.of(
+                        "attendanceId", attendanceId,
+                        "patientId", patientId,
+                        "patientName", patientName,
+                        "title", title,
+                        "description", description
+                ))
+                .build();
+
+        kafkaTemplate.send(ambulatoryFlowTopic, String.valueOf(attendanceId), envelope);
     }
 
     private void publish(String topic, String eventType, Triage triage, Object payload) {

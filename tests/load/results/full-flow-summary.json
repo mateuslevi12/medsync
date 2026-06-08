@@ -1,0 +1,306 @@
+{
+    "metrics": {
+        "http_req_connecting": {
+            "avg": 0.0009920666666666665,
+            "min": 0,
+            "med": 0,
+            "max": 0.104167,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_receiving": {
+            "p(95)": 0.5424245999999997,
+            "avg": 0.21715749523809527,
+            "min": 0.050333,
+            "med": 0.168208,
+            "max": 1.3705,
+            "p(90)": 0.41655840000000005
+        },
+        "data_sent": {
+            "count": 48312,
+            "rate": 1521.1263055122247
+        },
+        "iteration_duration": {
+            "max": 2131.14196,
+            "p(90)": 2129.6895176,
+            "p(95)": 2130.9052718,
+            "avg": 2117.3337761333332,
+            "min": 2101.914418,
+            "med": 2119.601584
+        },
+        "http_req_tls_handshaking": {
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 105,
+            "thresholds": {
+                "rate<0.05": false
+            },
+            "value": 0
+        },
+        "http_req_blocked": {
+            "med": 0.002625,
+            "max": 0.547375,
+            "p(90)": 0.009200000000000002,
+            "p(95)": 0.021266599999999993,
+            "avg": 0.009830180952380953,
+            "min": 0.001375
+        },
+        "http_req_waiting": {
+            "avg": 16.01063082857143,
+            "min": 3.770959,
+            "med": 5.960417,
+            "max": 82.306792,
+            "p(90)": 67.1550164,
+            "p(95)": 73.283925
+        },
+        "checks": {
+            "passes": 345,
+            "fails": 0,
+            "thresholds": {
+                "rate>0.95": false
+            },
+            "value": 1
+        },
+        "http_req_sending": {
+            "max": 0.103791,
+            "p(90)": 0.0379254,
+            "p(95)": 0.0679418,
+            "avg": 0.018907923809523806,
+            "min": 0.005542,
+            "med": 0.0105
+        },
+        "vus": {
+            "value": 1,
+            "min": 1,
+            "max": 1
+        },
+        "http_reqs": {
+            "count": 105,
+            "rate": 3.3059749560933844
+        },
+        "group_duration": {
+            "p(95)": 2130.859984,
+            "avg": 2117.3193704,
+            "min": 2101.901085,
+            "med": 2119.590376,
+            "max": 2131.127209,
+            "p(90)": 2129.6502426
+        },
+        "http_req_duration": {
+            "p(90)": 67.29266679999999,
+            "p(95)": 73.4448584,
+            "avg": 16.246696247619038,
+            "min": 4.060083,
+            "med": 6.117166,
+            "max": 82.43975,
+            "thresholds": {
+                "p(95)<2000": false
+            }
+        },
+        "data_received": {
+            "count": 814892,
+            "rate": 25657.262323055715
+        },
+        "iterations": {
+            "count": 15,
+            "rate": 0.4722821365847692
+        },
+        "vus_max": {
+            "value": 1,
+            "min": 1,
+            "max": 1
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(95)": 73.4448584,
+            "avg": 16.246696247619038,
+            "min": 4.060083,
+            "med": 6.117166,
+            "max": 82.43975,
+            "p(90)": 67.29266679999999
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "full distributed flow": {
+                "path": "::full distributed flow",
+                "id": "7141381d52018de313afa15ed3811047",
+                "groups": {},
+                "checks": {
+                        "login status 200": {
+                            "id": "2affe8aaaae44e51a19340411d2b6f67",
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "login status 200",
+                            "path": "::full distributed flow::login status 200"
+                        },
+                        "login duration < 2000ms": {
+                            "name": "login duration < 2000ms",
+                            "path": "::full distributed flow::login duration < 2000ms",
+                            "id": "d29b67ca6c0a9e9e25451b7f037c270a",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "login token exists": {
+                            "path": "::full distributed flow::login token exists",
+                            "id": "4754698fc2e44d8c5223ff2d8f14153a",
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "login token exists"
+                        },
+                        "login user exists": {
+                            "name": "login user exists",
+                            "path": "::full distributed flow::login user exists",
+                            "id": "93cba5e1262c22c2e1afd59498005c92",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "create patient status 201": {
+                            "fails": 0,
+                            "name": "create patient status 201",
+                            "path": "::full distributed flow::create patient status 201",
+                            "id": "e84fffef6aae6472cd219190a6e2602f",
+                            "passes": 15
+                        },
+                        "create patient duration < 2000ms": {
+                            "path": "::full distributed flow::create patient duration < 2000ms",
+                            "id": "5617311908bb0957f9ebab22342e93c0",
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "create patient duration < 2000ms"
+                        },
+                        "create patient id exists": {
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "create patient id exists",
+                            "path": "::full distributed flow::create patient id exists",
+                            "id": "f9ca0ebbfe7d9b82c05a61ebb7f3b6dd"
+                        },
+                        "get patient by id status 200": {
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "get patient by id status 200",
+                            "path": "::full distributed flow::get patient by id status 200",
+                            "id": "122857ed8d6942a2588ed93d4aacc669"
+                        },
+                        "get patient by id duration < 2000ms": {
+                            "name": "get patient by id duration < 2000ms",
+                            "path": "::full distributed flow::get patient by id duration < 2000ms",
+                            "id": "623d2ea7be481ccbe800b33218ed0390",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "get patient by id matches": {
+                            "path": "::full distributed flow::get patient by id matches",
+                            "id": "cf9535ae20b021b85dae81c4464e845e",
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "get patient by id matches"
+                        },
+                        "create triage status 201": {
+                            "name": "create triage status 201",
+                            "path": "::full distributed flow::create triage status 201",
+                            "id": "beca87dc3ab1f7b73bb840528eb048e5",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "create triage duration < 2000ms": {
+                            "name": "create triage duration < 2000ms",
+                            "path": "::full distributed flow::create triage duration < 2000ms",
+                            "id": "1ceb4ebeb36c00b9974e82ddba815a12",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "create triage id exists": {
+                            "fails": 0,
+                            "name": "create triage id exists",
+                            "path": "::full distributed flow::create triage id exists",
+                            "id": "9cc3006fabcf0ae548d543b5345c7fba",
+                            "passes": 15
+                        },
+                        "create triage patient matches": {
+                            "name": "create triage patient matches",
+                            "path": "::full distributed flow::create triage patient matches",
+                            "id": "6d1bf251e9ec752a8b1e61b6857584c7",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "list waiting triages status 200": {
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "list waiting triages status 200",
+                            "path": "::full distributed flow::list waiting triages status 200",
+                            "id": "5df0185ac26b164618c5b37b96ab11f2"
+                        },
+                        "list waiting triages duration < 2000ms": {
+                            "name": "list waiting triages duration < 2000ms",
+                            "path": "::full distributed flow::list waiting triages duration < 2000ms",
+                            "id": "e9db7dae98eaf9ccb8691222c67b0fbb",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "list triages returns array": {
+                            "path": "::full distributed flow::list triages returns array",
+                            "id": "92ddd1dcb743641014cad4abd615cdbf",
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "list triages returns array"
+                        },
+                        "list notifications status 200": {
+                            "name": "list notifications status 200",
+                            "path": "::full distributed flow::list notifications status 200",
+                            "id": "cd21a7de95e5d7cd43ef3b74cfa41dc0",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "list notifications duration < 2000ms": {
+                            "path": "::full distributed flow::list notifications duration < 2000ms",
+                            "id": "031db7846c2137fd100695e5e89b542f",
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "list notifications duration < 2000ms"
+                        },
+                        "list notifications returns array": {
+                            "id": "81ac2e3e485b3a3d013c31b4ccbe8a3f",
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "list notifications returns array",
+                            "path": "::full distributed flow::list notifications returns array"
+                        },
+                        "mark notification as read status 200": {
+                            "name": "mark notification as read status 200",
+                            "path": "::full distributed flow::mark notification as read status 200",
+                            "id": "13dcb64e2de88544dd098a9b0c3945e6",
+                            "passes": 15,
+                            "fails": 0
+                        },
+                        "mark notification as read duration < 2000ms": {
+                            "fails": 0,
+                            "name": "mark notification as read duration < 2000ms",
+                            "path": "::full distributed flow::mark notification as read duration < 2000ms",
+                            "id": "ca4a030a90ddc7c221c0ce50b37abde0",
+                            "passes": 15
+                        },
+                        "mark notification as read returns id": {
+                            "path": "::full distributed flow::mark notification as read returns id",
+                            "id": "30fa43ce2c32ba59744fa866bbc6e15b",
+                            "passes": 15,
+                            "fails": 0,
+                            "name": "mark notification as read returns id"
+                        }
+                    },
+                "name": "full distributed flow"
+            }
+        },
+        "checks": {}
+    }
+}

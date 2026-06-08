@@ -59,6 +59,37 @@ public class TriageEventConsumer {
         );
     }
 
+    @KafkaListener(topics = "${app.kafka.topics.ambulatory-flow}", groupId = "${spring.kafka.consumer.group-id}")
+    public void onAmbulatoryFlow(EventEnvelope event) {
+        JsonNode payload = event.getPayload();
+        String title = text(payload, "title", "Atualização do fluxo ambulatorial");
+        String description = text(payload, "description", "Novo evento operacional registrado.");
+
+        notificationService.createFromEvent(
+                event.getEventId(),
+                event.getAggregateId(),
+                mapNotificationType(event.getEventType()),
+                title,
+                description
+        );
+    }
+
+    private NotificationType mapNotificationType(String eventType) {
+        if (eventType == null || eventType.isBlank()) {
+            return NotificationType.TRIAGE_UPDATED;
+        }
+
+        return switch (eventType) {
+            case "PATIENT_ADDED_TO_QUEUE" -> NotificationType.PATIENT_ADDED_TO_QUEUE;
+            case "TRIAGE_STARTED" -> NotificationType.TRIAGE_STARTED;
+            case "TRIAGE_COMPLETED" -> NotificationType.TRIAGE_COMPLETED;
+            case "PATIENT_REFERRED_TO_MEDICAL" -> NotificationType.PATIENT_REFERRED_TO_MEDICAL;
+            case "MEDICAL_STARTED" -> NotificationType.MEDICAL_STARTED;
+            case "MEDICAL_FINISHED" -> NotificationType.MEDICAL_FINISHED;
+            default -> NotificationType.TRIAGE_UPDATED;
+        };
+    }
+
     private String text(JsonNode payload, String key, String fallback) {
         if (payload == null || payload.get(key) == null || payload.get(key).isNull()) {
             return fallback;

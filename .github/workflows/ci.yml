@@ -47,6 +47,7 @@ jobs:
           - users-service
           - patients-service
           - triage-service
+          - medical-record-service
           - notifications-service
     defaults:
       run:

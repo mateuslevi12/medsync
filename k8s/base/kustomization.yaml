@@ -7,6 +7,7 @@ resources:
   - configmaps/frontend-config.yaml
   - secrets/application-secrets.yaml
   - secrets/database-secrets.yaml
+  - mongodb/mongodb.yaml
   - postgres/postgres-users.yaml
   - postgres/postgres-patients.yaml
   - postgres/postgres-triage.yaml
@@ -19,6 +20,7 @@ resources:
   - users-service/users-service.yaml
   - patients-service/patients-service.yaml
   - triage-service/triage-service.yaml
+  - medical-record-service/medical-record-service.yaml
   - notifications-service/notifications-service.yaml
   - frontend/frontend.yaml
   - monitoring/prometheus/prometheus.yaml

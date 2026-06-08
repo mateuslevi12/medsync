@@ -2,9 +2,11 @@
 
 ## 1. Visao geral
 
-O MedSync adota uma arquitetura distribuida baseada em microservices, com separacao de responsabilidades por dominio funcional, gateway unico de entrada, cache distribuido, mensageria assincrona e observabilidade integrada.
+O MedSync adota arquitetura distribuida baseada em microservices, com gateway unico de entrada, persistencia por dominio, mensageria assincrona e fallback visual controlado no frontend.
 
-## 2. Diagrama textual da arquitetura
+Nesta etapa final o prontuario deixou de viver apenas no `triage-service` e passou a ter uma fonte principal separada em MongoDB por meio do `medical-record-service`.
+
+## 2. Diagrama textual
 
 ```text
 Frontend Next.js
@@ -13,189 +15,195 @@ Frontend Next.js
     -> users-service
     -> patients-service
     -> triage-service
+    -> medical-record-service
     -> notifications-service
 
-patients-service -> PostgreSQL + Redis
-triage-service -> PostgreSQL + Redis + Kafka Producer
-notifications-service -> PostgreSQL + Kafka Consumer
+patients-service
+  -> pacientes
+  -> alergias
+  -> vacinas
+  -> Redis
 
-Prometheus -> /actuator/prometheus dos servicos Spring Boot
+triage-service
+  -> fila ambulatorial
+  -> acolhimento
+  -> atendimento medico
+  -> snapshot relacional legado
+  -> Kafka producer
+  -> sync interno com medical-record-service
+
+medical-record-service
+  -> prontuario longitudinal
+  -> timeline clinica
+  -> resumo para dashboard
+  -> MongoDB
+  -> Kafka consumer de ambulatory.flow
+
+notifications-service
+  -> Kafka consumer
+  -> notificacoes persistidas
+
+Prometheus -> /actuator/prometheus
 Grafana -> Prometheus
 ```
 
-## 3. Servicos
+## 3. Responsabilidades por servico
 
 `frontend`:
 
-- interface web em Next.js
-- autentica no `auth-service` via API Gateway
-- consome pacientes, triagem e notificacoes
+- interface em Next.js
+- shell protegido unificado
+- modo `API` e modo `demo`
+- telas de fila, acolhimento, atendimento medico, prontuario, timeline, dashboard, monitoramento e relatorios
 
 `api-gateway`:
 
 - ponto unico de entrada HTTP
-- roteia `/api/auth`, `/api/users`, `/api/patients`, `/api/triage` e `/api/notifications`
-- concentra CORS e metricas de borda
+- roteia `/api/auth`, `/api/users`, `/api/patients`, `/api/triage`, `/api/ambulatory`, `/api/medical-records` e `/api/notifications`
 
 `auth-service`:
 
 - autentica usuarios
 - emite JWT
-- expõe `/api/auth/login` e `/api/auth/me`
 
 `users-service`:
 
-- CRUD de usuarios
-- seed de administrador
-- endpoint interno para validacao de credenciais
+- CRUD de usuarios e perfis
 
 `patients-service`:
 
 - CRUD de pacientes
 - busca por nome e CPF
-- cache Redis por `id` e por `cpf`
+- armazenamento de `cns`
+- alergias e vacinas
+- cache Redis com invalidacao em alteracoes clinicas
 
 `triage-service`:
 
-- cria e atualiza triagens
-- mantem fila de espera
-- publica eventos Kafka
+- fila ambulatorial (`AmbulatoryAttendance`)
+- acolhimento com sinais vitais e classificacao de risco
+- atendimento medico (`MedicalAttendance`)
+- timeline clinico-operacional local
+- compatibilidade com o fluxo legado `/api/triage`
+- publicacao Kafka para notificacoes
+- sincronizacao best-effort com o `medical-record-service`
+
+`medical-record-service`:
+
+- fonte principal de `/api/medical-records/**`
+- prontuario por paciente em `MedicalRecordDocument`
+- snapshots de alergias e vacinas
+- triagens e atendimentos medicos longitudinalmente agregados
+- timeline clinica enriquecida por eventos do fluxo ambulatorial
+- endpoint de resumo para dashboard, monitoramento e relatorios
 
 `notifications-service`:
 
-- consome eventos Kafka
-- persiste notificacoes
-- expõe leitura e marcacao de notificacoes
-
-`Kafka/Zookeeper`:
-
-- backbone de eventos assincronos do dominio de triagem
-
-`Redis`:
-
-- cache distribuido usado por pacientes e triagem
-
-`PostgreSQL`:
-
-- banco por dominio:
-  - users
-  - patients
-  - triage
-  - notifications
-
-`Prometheus/Grafana`:
-
-- coleta e visualizacao de metricas operacionais
+- consumo dos topicos de triagem e fluxo ambulatorial
+- persistencia e leitura de notificacoes
 
 ## 4. Comunicacao sincrona
 
-O fluxo sincrono principal e:
+Fluxo principal:
 
 `frontend -> api-gateway -> microservices REST`
 
-Caracteristicas:
+Chamadas relevantes do frontend novo:
 
-- o frontend nao acessa diretamente os microservices
-- o gateway centraliza as rotas externas
-- a autenticacao e propagada por JWT
+- `/api/ambulatory/queue`
+- `/api/medical-records/patient/{patientId}`
+- `/api/medical-records/patient/{patientId}/timeline`
+- `/api/medical-records/summary`
+- `/api/patients/{patientId}/allergies`
+- `/api/patients/{patientId}/vaccines`
+- `/api/notifications`
+
+Chamadas internas novas:
+
+- `triage-service -> medical-record-service` com `X-Internal-Token`
+- `PUT /api/medical-records/internal/patient/{patientId}/snapshot`
+- `POST /api/medical-records/internal/patient/{patientId}/triage-records`
+- `POST /api/medical-records/internal/patient/{patientId}/medical-attendances`
 
 ## 5. Comunicacao assincrona
 
-O `triage-service` publica eventos Kafka:
+Topicos mantidos:
 
 - `triage.created`
 - `triage.updated`
 - `triage.priority.changed`
 
-O `notifications-service` consome esses eventos e gera notificacoes persistidas para consulta no frontend.
+Topico central do fluxo hospitalar:
 
-Fluxo resumido:
+- `ambulatory.flow`
 
-`triage-service -> Kafka -> notifications-service`
+Eventos publicados pelo `triage-service`:
 
-## 6. Cache distribuido
+- `PATIENT_ADDED_TO_QUEUE`
+- `TRIAGE_STARTED`
+- `TRIAGE_COMPLETED`
+- `PATIENT_REFERRED_TO_MEDICAL`
+- `MEDICAL_STARTED`
+- `MEDICAL_FINISHED`
 
-O Redis e usado em dois pontos:
+Consumidores:
+
+- `notifications-service`: transforma eventos em notificacoes persistidas
+- `medical-record-service`: acrescenta eventos na timeline clinica longitudinal
+
+## 6. Persistencia
 
 `patients-service`:
 
-- cache por `id`
-- cache por `cpf`
-- invalidacao em `update` e `delete`
+- tabela de pacientes
+- tabela de alergias
+- tabela de vacinas
+- cache Redis por `id` e `cpf`
 
 `triage-service`:
 
-- cache da fila de espera
-- invalidacao em criacao, alteracao de status, update e delete
+- tabela de atendimentos ambulatoriais
+- tabela de atendimentos medicos
+- tabela de eventos de timeline
+- persistencia legado/compatibilidade do fluxo clinico-operacional
 
-Os testes de carga validaram essa camada e revelaram um problema real de serializacao de `LocalDate` no cache Redis do `patients-service`, posteriormente corrigido no `CacheConfig`.
+`medical-record-service`:
 
-## 7. Seguranca
+- colecao MongoDB `medical_records`
+- um documento por paciente
+- arrays de `triages`, `medicalAttendances` e `timelineEvents`
+- snapshots agregados para alergias e vacinas
 
-Camadas principais:
+`notifications-service`:
 
-- JWT emitido pelo `auth-service`
-- senhas com BCrypt no `users-service`
-- token interno `X-Internal-Token` entre `auth-service` e `users-service`
-- rotas protegidas por papel (`ADMIN`, `HEALTH_PROFESSIONAL`, `RECEPTIONIST`)
+- tabela de notificacoes com deduplicacao por `sourceEventId`
 
-## 8. Observabilidade
+## 7. Frontend: API mode e demo mode
 
-Todos os servicos Spring Boot expõem:
+O fallback demo foi preservado para manter apresentacao e navegacao mesmo sem backend:
 
-- `/actuator/health`
-- `/actuator/info`
-- `/actuator/metrics`
-- `/actuator/prometheus`
+- `NEXT_PUBLIC_DEMO_MODE=true`: usa demo/localStorage
+- `NEXT_PUBLIC_DEMO_MODE=false`: usa backend real
+- se o token estiver invalido, o layout protegido limpa a sessao e redireciona para `/login`
+- se uma tela analitica falhar com demo desligado, a UI agora mostra um banner explicito de erro em vez de mascarar a falha como zero silencioso
 
-O Prometheus coleta essas metricas, e o Grafana expõe o dashboard `MedSync Overview`, incluindo:
+## 8. Observabilidade, build e deploy
 
-- disponibilidade dos servicos
-- requisicoes HTTP
-- latencia `p95`
-- erros `4xx/5xx`
-- uso de memoria JVM
-- uso de CPU do processo
+Infraestrutura atualizada:
 
-## 9. Deploy
+- Docker Compose local com `mongodb` e `medical-record-service`
+- `k8s/base` e overlays `staging`, `production` e `vps-production` incluem MongoDB e o novo servico
+- Prometheus raspa `medical-record-service:8086`
+- CI/CD builda e publica a nova imagem `medsync-medical-record-service`
 
-O projeto oferece duas camadas de deploy:
+Hardenings de build:
 
-`Docker Compose`:
+- Dockerfiles Java agora usam cache de Maven com `dependency:go-offline`
+- isso reduz fragilidade de `docker compose up --build` e do pipeline ao baixar dependencias repetidas
 
-- ambiente local completo para desenvolvimento, validacao e demonstracao
+## 9. Limitacoes restantes
 
-`Kubernetes`:
-
-- base reutilizavel em `k8s/base`
-- overlays:
-  - `k8s/overlays/staging`
-  - `k8s/overlays/production`
-- fallback documentado com `port-forward`
-
-## 10. CI/CD
-
-Os workflows principais em GitHub Actions sao:
-
-- `ci.yml`
-- `docker-build.yml`
-- `deploy-staging.yml`
-- `deploy-production.yml`
-- `load-tests.yml`
-
-Eles cobrem validacao, build/push de imagens, deploy manual em Kubernetes e smoke tests manuais com k6.
-
-## 11. Justificativas academicas
-
-O projeto cobre de forma integrada os topicos centrais esperados em Sistemas Distribuidos:
-
-- cliente-servidor
-- microservices
-- mensageria assincrona
-- cache distribuido
-- autenticacao e autorizacao
-- observabilidade
-- containerizacao
-- Kubernetes
-- CI/CD
-- testes de carga
+- o prontuario agora e separado e longitudinal para o fluxo ambulatorial, mas ainda nao cobre prontuario hospitalar completo
+- relatorios continuam no nivel de resumo operacional; os botoes de `Gerar` ainda nao executam exportacoes reais
+- a consistencia entre servicos e eventual, baseada em sync REST interno e eventos Kafka
+- o fluxo legado `/api/triage` continua vivo por compatibilidade com entregas anteriores

@@ -69,6 +69,7 @@ public class GlobalExceptionHandler {
             case "gender" -> "genero";
             case "phone" -> "telefone";
             case "documentNumber" -> "documento";
+            case "cns" -> "cns";
             case "address" -> "endereco";
             default -> campo;
         };

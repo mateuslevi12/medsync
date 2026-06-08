@@ -1,0 +1,54 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: medical-record-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/medsync_records}
+      database: ${MONGODB_DATABASE:medsync_records}
+  jackson:
+    default-property-inclusion: non_null
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:medical-record-service}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: com.medsync.medicalrecords.messaging.EventEnvelope
+
+management:
+  info:
+    env:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: MedSync Medical Record Service
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:medsync-super-secret-key-for-jwt-demo-1234567890}
+  internal:
+    token: ${INTERNAL_SERVICE_TOKEN:medsync-internal-token}
+  kafka:
+    topics:
+      ambulatory-flow: ${KAFKA_TOPIC_AMBULATORY_FLOW:ambulatory.flow}

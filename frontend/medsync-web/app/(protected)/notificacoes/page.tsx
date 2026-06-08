@@ -1,122 +1,107 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { apiRequest, parseApiError } from "../../../lib/api";
-import { notificationTypeLabel } from "../../../lib/labels";
-import type { NotificationResponse } from "../../../lib/types";
+import { useEffect, useState } from "react";
+import { AppShell } from "@/components/app-shell";
+import { StatusPill } from "@/components/medsync-primitives";
+import { Button } from "@/components/ui/button";
+import type { NotificationResponse } from "@/lib/types";
+import { getNotifications } from "@/services/notifications";
+import { getServiceErrorMessage, isDemoModeEnabled } from "@/services/runtime";
+
+function notificationCategory(type: NotificationResponse["type"]) {
+  switch (type) {
+    case "PATIENT_ADDED_TO_QUEUE":
+      return "Fila";
+    case "TRIAGE_STARTED":
+    case "TRIAGE_COMPLETED":
+      return "Acolhimento";
+    case "MEDICAL_STARTED":
+    case "MEDICAL_FINISHED":
+      return "Atendimento";
+    default:
+      return "Operação";
+  }
+}
 
 export default function NotificacoesPage() {
+  const [forceDemo, setForceDemo] = useState(isDemoModeEnabled());
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
-  const [status, setStatus] = useState<{ message: string; isError: boolean }>({ message: "", isError: false });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void loadNotifications();
+    let mounted = true;
 
-    const interval = window.setInterval(() => {
-      void loadNotifications(false);
-    }, 15000);
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await getNotifications({ demo: forceDemo });
+        if (mounted) {
+          setNotifications(data);
+        }
+      } catch (rawError) {
+        if (mounted) {
+          setError(getServiceErrorMessage(rawError, "Não foi possível carregar as notificações."));
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
 
     return () => {
-      window.clearInterval(interval);
+      mounted = false;
     };
-  }, []);
-
-  const unreadCount = useMemo(() => notifications.filter((item) => !item.read).length, [notifications]);
-
-  async function loadNotifications(showStatus = true) {
-    try {
-      const data = await apiRequest<NotificationResponse[]>("/api/notifications");
-      setNotifications(Array.isArray(data) ? data : []);
-      if (showStatus) {
-        setStatus({ message: "Notificações carregadas.", isError: false });
-      }
-    } catch (error) {
-      const parsed = parseApiError(error);
-      setStatus({ message: parsed.message, isError: true });
-    }
-  }
-
-  async function markAsRead(id: number) {
-    try {
-      await apiRequest<NotificationResponse>(`/api/notifications/${id}/read`, { method: "PATCH" });
-      await loadNotifications();
-    } catch (error) {
-      const parsed = parseApiError(error);
-      setStatus({ message: parsed.message, isError: true });
-    }
-  }
-
-  async function markAllAsRead() {
-    try {
-      await apiRequest<void>("/api/notifications/read-all", { method: "PATCH" });
-      await loadNotifications();
-    } catch (error) {
-      const parsed = parseApiError(error);
-      setStatus({ message: parsed.message, isError: true });
-    }
-  }
+  }, [forceDemo]);
 
   return (
-    <main className="grid gap-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Notificações</h1>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            onClick={() => void loadNotifications()}
-          >
-            Atualizar
-          </button>
-          <button
-            type="button"
-            className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-            onClick={() => void markAllAsRead()}
-            disabled={unreadCount === 0}
-          >
-            Marcar todas como lidas
-          </button>
-        </div>
-      </header>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-sm text-slate-700">Não lidas: {unreadCount}</p>
-
-        {status.message ? (
-          <p className={`mt-2 text-sm font-medium ${status.isError ? "text-red-700" : "text-emerald-700"}`}>
-            {status.message}
-          </p>
+    <AppShell
+      title="Notificações"
+      description="Eventos operacionais do fluxo hospitalar."
+      breadcrumbs={[
+        { label: "Hub", href: "/dashboard" },
+        { label: "Notificações" },
+      ]}
+    >
+      <div className="space-y-4">
+        {error ? (
+          <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>{error}</span>
+              {!forceDemo ? (
+                <Button variant="outline" size="sm" onClick={() => setForceDemo(true)}>
+                  Usar modo demonstração
+                </Button>
+              ) : null}
+            </div>
+          </div>
         ) : null}
 
-        <div className="mt-3 grid gap-3">
-          {notifications.map((notification) => (
-            <article
-              key={notification.id}
-              className={`rounded-lg border p-3 ${
-                notification.read ? "border-slate-200 bg-slate-50" : "border-blue-300 bg-blue-50"
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-slate-900">{notification.title}</h2>
-                <span className="text-xs text-slate-600">{notificationTypeLabel(notification.type)}</span>
+        {loading ? <div className="surface-card p-5 text-sm text-muted-foreground">Carregando notificações...</div> : null}
+
+        {notifications.map((notification) => (
+          <article
+            key={notification.id}
+            className={`surface-card p-5 ${notification.read ? "" : "border-primary/30 bg-[#F8FBFF]"}`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[16px] font-semibold text-foreground">{notification.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{notification.message}</p>
               </div>
-              <p className="mt-1 text-sm text-slate-700">{notification.message}</p>
-              <p className="mt-1 text-xs text-slate-600">
-                {notification.createdAt ? new Date(notification.createdAt).toLocaleString("pt-BR") : "-"}
-              </p>
-              {!notification.read ? (
-                <button
-                  type="button"
-                  className="mt-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
-                  onClick={() => void markAsRead(notification.id)}
-                >
-                  Marcar como lida
-                </button>
-              ) : null}
-            </article>
-          ))}
-        </div>
-      </section>
-    </main>
+              <StatusPill tone={notification.read ? "slate" : "blue"}>
+                {notificationCategory(notification.type)}
+              </StatusPill>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">{new Date(notification.createdAt).toLocaleString("pt-BR")}</p>
+          </article>
+        ))}
+      </div>
+    </AppShell>
   );
 }

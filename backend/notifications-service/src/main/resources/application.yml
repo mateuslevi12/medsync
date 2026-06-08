@@ -57,3 +57,4 @@ app:
       triage-created: ${KAFKA_TOPIC_TRIAGE_CREATED:triage.created}
       triage-updated: ${KAFKA_TOPIC_TRIAGE_UPDATED:triage.updated}
       triage-priority-changed: ${KAFKA_TOPIC_TRIAGE_PRIORITY_CHANGED:triage.priority.changed}
+      ambulatory-flow: ${KAFKA_TOPIC_AMBULATORY_FLOW:ambulatory.flow}

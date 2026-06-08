@@ -44,7 +44,12 @@ spring:
         - id: triage-service
           uri: ${TRIAGE_SERVICE_URL:http://localhost:8084}
           predicates:
-            - Path=/api/triage/**
+            - Path=/api/triage/**,/api/ambulatory/**
+
+        - id: medical-record-service
+          uri: ${MEDICAL_RECORDS_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/api/medical-records/**
 
         - id: notifications-service
           uri: ${NOTIFICATIONS_SERVICE_URL:http://localhost:8085}

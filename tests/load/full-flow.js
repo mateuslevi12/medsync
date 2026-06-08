@@ -1,15 +1,28 @@
 import { group, sleep } from "k6";
 import {
+  callAmbulatoryMedical,
+  callAmbulatoryTriage,
+  completeAmbulatoryTriage,
+  createAmbulatoryAttendance,
   createPatient,
-  createTriage,
-  findNotificationByTriage,
+  createPatientAllergy,
+  createPatientVaccine,
+  findNotificationByAggregate,
   fullFlowOptions,
+  getAmbulatoryAttendance,
+  getMedicalRecord,
+  getMedicalTimeline,
   getPatientById,
+  listAmbulatoryQueue,
+  listPatientAllergies,
+  listPatientVaccines,
   listNotifications,
-  listTriages,
+  markAllNotificationsAsRead,
   login,
   markNotificationAsRead,
+  finishAmbulatoryMedical,
   resolveOptions,
+  updatePatientVaccine,
   waitForNotification
 } from "./config.js";
 
@@ -20,34 +33,81 @@ export default function () {
     const auth = login();
     const token = auth.token;
 
+    markAllNotificationsAsRead(token);
+
     const patient = createPatient(token);
     getPatientById(token, patient.id);
 
-    const triage = createTriage(token, patient, {
-      symptoms: "Paciente criado pelo fluxo completo do k6",
-      painLevel: 7,
-      notes: "Fluxo completo validando API Gateway, triagem e notificacoes"
+    createPatientAllergy(token, patient.id, {
+      description: "Dipirona monoidratada"
     });
+    listPatientAllergies(token, patient.id);
 
-    listTriages(token, true);
+    const covid = createPatientVaccine(token, patient.id, {
+      name: "COVID-19",
+      status: "EM_DIA",
+      applicationDate: "2026-01-10"
+    });
+    createPatientVaccine(token, patient.id, {
+      name: "Influenza",
+      status: "PENDENTE"
+    });
+    createPatientVaccine(token, patient.id, {
+      name: "Hepatite B",
+      status: "EM_DIA",
+      applicationDate: "2025-08-01"
+    });
+    createPatientVaccine(token, patient.id, {
+      name: "Tetano",
+      status: "DESCONHECIDO"
+    });
+    updatePatientVaccine(token, patient.id, covid.id, {
+      name: "COVID-19",
+      status: "EM_DIA",
+      applicationDate: "2026-01-12",
+      notes: "Dose reforco validada pelo k6"
+    });
+    listPatientVaccines(token, patient.id);
 
-    // O notifications-service consome o evento Kafka gerado pela triagem.
+    const attendance = createAmbulatoryAttendance(token, patient, {
+      queueName: "ACOLHIMENTO"
+    });
+    listAmbulatoryQueue(token);
+    getAmbulatoryAttendance(token, attendance.id);
+    callAmbulatoryTriage(token, attendance.id);
+    completeAmbulatoryTriage(token, attendance.id);
+    callAmbulatoryMedical(token, attendance.id);
+    finishAmbulatoryMedical(token, attendance.id);
+    getAmbulatoryAttendance(token, attendance.id);
+    const record = getMedicalRecord(token, patient.id);
+    const timeline = getMedicalTimeline(token, patient.id);
+
+    if (!record.medicalAttendances || record.medicalAttendances.length === 0) {
+      throw new Error(`Nenhum atendimento medico foi retornado para o paciente ${patient.id}.`);
+    }
+
+    if (!timeline.length) {
+      throw new Error(`Nenhum evento de timeline foi retornado para o paciente ${patient.id}.`);
+    }
+
+    // O notifications-service consome o evento Kafka gerado pelo fluxo ambulatorial.
     sleep(2);
 
     const notifications = listNotifications(token, false);
-    let relatedNotification = findNotificationByTriage(notifications, triage.id);
+    let relatedNotification = findNotificationByAggregate(notifications, attendance.id, ["MEDICAL_FINISHED"]);
 
     if (!relatedNotification) {
-      relatedNotification = waitForNotification(token, triage.id, {
+      relatedNotification = waitForNotification(token, attendance.id, {
         attempts: 6,
-        pauseSeconds: 2
+        pauseSeconds: 2,
+        expectedTypes: ["MEDICAL_FINISHED"]
       });
     }
 
     if (relatedNotification) {
       markNotificationAsRead(token, relatedNotification.id);
     } else {
-      throw new Error(`Nenhuma notificacao foi encontrada para a triagem ${triage.id}.`);
+      throw new Error(`Nenhuma notificacao final foi encontrada para o atendimento ${attendance.id}.`);
     }
   });
 }

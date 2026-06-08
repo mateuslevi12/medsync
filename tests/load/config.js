@@ -12,9 +12,9 @@ export const jsonHeaders = {
 };
 
 export const commonThresholds = {
-  http_req_failed: ["rate<0.05"],
+  http_req_failed: ["rate==0"],
   http_req_duration: ["p(95)<2000"],
-  checks: ["rate>0.95"]
+  checks: ["rate==1"]
 };
 
 export const smokeOptions = {
@@ -127,6 +127,23 @@ export function randomPatient() {
   };
 }
 
+export function calculateAgeFromBirthDate(birthDate) {
+  if (!birthDate) {
+    return 0;
+  }
+
+  const today = new Date();
+  const birth = new Date(`${birthDate}T00:00:00`);
+  let age = today.getUTCFullYear() - birth.getUTCFullYear();
+  const monthDiff = today.getUTCMonth() - birth.getUTCMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getUTCDate() < birth.getUTCDate())) {
+    age -= 1;
+  }
+
+  return Math.max(age, 0);
+}
+
 export function createPatient(token, overrides = {}) {
   const request = {
     ...randomPatient(),
@@ -190,6 +207,143 @@ export function getPatientById(token, patientId) {
     expectedStatus: 200,
     extraChecks: {
       "get patient by id matches": () => String(payload && payload.id) === String(patientId)
+    }
+  });
+
+  return payload;
+}
+
+export function listPatientAllergies(token, patientId) {
+  const response = http.get(`${BASE_URL}/api/patients/${patientId}/allergies`, {
+    headers: authHeaders(token),
+    tags: {
+      flow: "patients-clinical",
+      endpoint: "list-allergies"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "list patient allergies", {
+    expectedStatus: 200,
+    extraChecks: {
+      "list patient allergies returns array": () => Array.isArray(payload)
+    }
+  });
+
+  return Array.isArray(payload) ? payload : [];
+}
+
+export function createPatientAllergy(token, patientId, overrides = {}) {
+  const request = {
+    type: "MEDICAMENTO",
+    description: "Dipirona",
+    severity: "MODERADA",
+    ...overrides
+  };
+
+  const response = http.post(`${BASE_URL}/api/patients/${patientId}/allergies`, JSON.stringify(request), {
+    headers: authHeaders(token),
+    tags: {
+      flow: "patients-clinical",
+      endpoint: "create-allergy"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "create patient allergy", {
+    expectedStatus: 201,
+    extraChecks: {
+      "create patient allergy id exists": () => Boolean(payload && payload.id),
+      "create patient allergy patient matches": () => String(payload && payload.patientId) === String(patientId)
+    }
+  });
+
+  if (!payload || !payload.id) {
+    fail("Nao foi possivel criar a alergia do paciente.");
+  }
+
+  return payload;
+}
+
+export function listPatientVaccines(token, patientId) {
+  const response = http.get(`${BASE_URL}/api/patients/${patientId}/vaccines`, {
+    headers: authHeaders(token),
+    tags: {
+      flow: "patients-clinical",
+      endpoint: "list-vaccines"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "list patient vaccines", {
+    expectedStatus: 200,
+    extraChecks: {
+      "list patient vaccines returns array": () => Array.isArray(payload)
+    }
+  });
+
+  return Array.isArray(payload) ? payload : [];
+}
+
+export function createPatientVaccine(token, patientId, overrides = {}) {
+  const request = {
+    name: "COVID-19",
+    status: "EM_DIA",
+    applicationDate: "2026-01-10",
+    notes: "Registro criado pelo k6",
+    ...overrides
+  };
+
+  const response = http.post(`${BASE_URL}/api/patients/${patientId}/vaccines`, JSON.stringify(request), {
+    headers: authHeaders(token),
+    tags: {
+      flow: "patients-clinical",
+      endpoint: "create-vaccine"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "create patient vaccine", {
+    expectedStatus: 201,
+    extraChecks: {
+      "create patient vaccine id exists": () => Boolean(payload && payload.id),
+      "create patient vaccine patient matches": () => String(payload && payload.patientId) === String(patientId)
+    }
+  });
+
+  if (!payload || !payload.id) {
+    fail("Nao foi possivel criar a vacina do paciente.");
+  }
+
+  return payload;
+}
+
+export function updatePatientVaccine(token, patientId, vaccineId, overrides = {}) {
+  const request = {
+    name: "COVID-19",
+    status: "EM_DIA",
+    applicationDate: "2026-01-10",
+    notes: "Vacina atualizada pelo k6",
+    ...overrides
+  };
+
+  const response = http.put(
+    `${BASE_URL}/api/patients/${patientId}/vaccines/${vaccineId}`,
+    JSON.stringify(request),
+    {
+      headers: authHeaders(token),
+      tags: {
+        flow: "patients-clinical",
+        endpoint: "update-vaccine"
+      }
+    }
+  );
+
+  const payload = parseJson(response);
+  checkResponse(response, "update patient vaccine", {
+    expectedStatus: 200,
+    extraChecks: {
+      "update patient vaccine id matches": () => String(payload && payload.id) === String(vaccineId)
     }
   });
 
@@ -293,6 +447,260 @@ export function listTriages(token, waitingOnly = false) {
   return Array.isArray(payload) ? payload : [];
 }
 
+export function listAmbulatoryQueue(token) {
+  const response = http.get(`${BASE_URL}/api/ambulatory/queue`, {
+    headers: authHeaders(token),
+    tags: {
+      flow: "ambulatory",
+      endpoint: "queue-list"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "list ambulatory queue", {
+    expectedStatus: 200,
+    extraChecks: {
+      "list ambulatory queue returns array": () => Array.isArray(payload)
+    }
+  });
+
+  return Array.isArray(payload) ? payload : [];
+}
+
+export function createAmbulatoryAttendance(token, patient, overrides = {}) {
+  const request = {
+    patientId: patient.id,
+    patientName: patient.fullName,
+    patientCpf: patient.documentNumber,
+    patientCns: patient.cns || null,
+    patientPhone: patient.phone || null,
+    patientAge: calculateAgeFromBirthDate(patient.birthDate),
+    queueName: "ACOLHIMENTO",
+    priority: "NORMAL",
+    ...overrides
+  };
+
+  const response = http.post(`${BASE_URL}/api/ambulatory/queue`, JSON.stringify(request), {
+    headers: authHeaders(token),
+    tags: {
+      flow: "ambulatory",
+      endpoint: "queue-create"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "create ambulatory attendance", {
+    expectedStatus: 201,
+    extraChecks: {
+      "create ambulatory attendance id exists": () => Boolean(payload && payload.id),
+      "create ambulatory attendance patient matches": () => String(payload && payload.patientId) === String(patient.id)
+    }
+  });
+
+  if (!payload || !payload.id) {
+    fail("Nao foi possivel inserir o paciente na fila ambulatorial.");
+  }
+
+  return payload;
+}
+
+export function getAmbulatoryAttendance(token, attendanceId) {
+  const response = http.get(`${BASE_URL}/api/ambulatory/queue/${attendanceId}`, {
+    headers: authHeaders(token),
+    tags: {
+      flow: "ambulatory",
+      endpoint: "queue-detail"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "get ambulatory attendance", {
+    expectedStatus: 200,
+    extraChecks: {
+      "get ambulatory attendance id matches": () => String(payload && payload.id) === String(attendanceId)
+    }
+  });
+
+  return payload;
+}
+
+export function callAmbulatoryTriage(token, attendanceId) {
+  const response = http.patch(`${BASE_URL}/api/ambulatory/queue/${attendanceId}/call-triage`, null, {
+    headers: authHeaders(token),
+    tags: {
+      flow: "ambulatory",
+      endpoint: "call-triage"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "call ambulatory triage", {
+    expectedStatus: 200,
+    extraChecks: {
+      "call ambulatory triage status matches": () => payload && payload.status === "EM_TRIAGEM"
+    }
+  });
+
+  return payload;
+}
+
+export function completeAmbulatoryTriage(token, attendanceId, overrides = {}) {
+  const request = {
+    observations: "Paciente estabilizado durante o acolhimento pelo k6.",
+    destination: "Atendimento Médico",
+    riskClassification: "URGENTE",
+    weightKg: "70",
+    heightCm: "170",
+    bmi: "24.22",
+    abdominalCircumference: "82",
+    bloodPressure: "12x8",
+    respiratoryRate: "18",
+    heartRate: "86",
+    temperature: "37.4",
+    oxygenSaturation: "98",
+    glucose: "102",
+    painLevel: 6,
+    hasAllergy: true,
+    allergyType: "MEDICAMENTO",
+    allergyDescription: "Dipirona",
+    allergySeverity: "MODERADA",
+    vaccines: [
+      { name: "COVID-19", status: "EM_DIA" },
+      { name: "Influenza", status: "PENDENTE" },
+      { name: "Hepatite B", status: "EM_DIA" },
+      { name: "Tetano", status: "DESCONHECIDO" }
+    ],
+    ...overrides
+  };
+
+  const response = http.patch(
+    `${BASE_URL}/api/ambulatory/queue/${attendanceId}/complete-triage`,
+    JSON.stringify(request),
+    {
+      headers: authHeaders(token),
+      tags: {
+        flow: "ambulatory",
+        endpoint: "complete-triage"
+      }
+    }
+  );
+
+  const payload = parseJson(response);
+  checkResponse(response, "complete ambulatory triage", {
+    expectedStatus: 200,
+    extraChecks: {
+      "complete ambulatory triage status matches": () => payload && payload.status === "AGUARDANDO_MEDICO",
+      "complete ambulatory triage risk matches": () => payload && payload.riskClassification === request.riskClassification
+    }
+  });
+
+  return payload;
+}
+
+export function callAmbulatoryMedical(token, attendanceId) {
+  const response = http.patch(`${BASE_URL}/api/ambulatory/queue/${attendanceId}/call-medical`, null, {
+    headers: authHeaders(token),
+    tags: {
+      flow: "ambulatory",
+      endpoint: "call-medical"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "call ambulatory medical", {
+    expectedStatus: 200,
+    extraChecks: {
+      "call ambulatory medical status matches": () => payload && payload.status === "EM_ATENDIMENTO_MEDICO"
+    }
+  });
+
+  return payload;
+}
+
+export function finishAmbulatoryMedical(token, attendanceId, overrides = {}) {
+  const request = {
+    assessment: "Paciente com quadro estável e sem sinais de alarme.",
+    plan: "Sintomáticos, hidratação oral e retorno se piora clínica.",
+    procedureCode: "0301060096",
+    cidCodes: ["J00", "R50"],
+    notifications: "NOTIFICACAO COMPULSORIA NAO NECESSARIA",
+    accidentMoto: false,
+    accidentCarro: false,
+    accidentBicicleta: false,
+    accidentPedestre: false,
+    accidentOutros: false,
+    notes: "Atendimento encerrado pelo fluxo de carga.",
+    professionalName: "Medico K6",
+    ...overrides
+  };
+
+  const response = http.patch(
+    `${BASE_URL}/api/ambulatory/queue/${attendanceId}/finish-medical`,
+    JSON.stringify(request),
+    {
+      headers: authHeaders(token),
+      tags: {
+        flow: "ambulatory",
+        endpoint: "finish-medical"
+      }
+    }
+  );
+
+  const payload = parseJson(response);
+  checkResponse(response, "finish ambulatory medical", {
+    expectedStatus: 200,
+    extraChecks: {
+      "finish ambulatory medical status matches": () => payload && payload.status === "FINALIZADO",
+      "finish ambulatory medical record id exists": () => Boolean(payload && payload.medicalAttendanceId)
+    }
+  });
+
+  return payload;
+}
+
+export function getMedicalRecord(token, patientId) {
+  const response = http.get(`${BASE_URL}/api/medical-records/patient/${patientId}`, {
+    headers: authHeaders(token),
+    tags: {
+      flow: "medical-records",
+      endpoint: "record"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "get medical record", {
+    expectedStatus: 200,
+    extraChecks: {
+      "get medical record patient matches": () => String(payload && payload.patientId) === String(patientId),
+      "get medical record triages exists": () => Array.isArray(payload && payload.triages),
+      "get medical record attendances exists": () => Array.isArray(payload && payload.medicalAttendances),
+      "get medical record timeline exists": () => Array.isArray(payload && payload.timeline)
+    }
+  });
+
+  return payload;
+}
+
+export function getMedicalTimeline(token, patientId) {
+  const response = http.get(`${BASE_URL}/api/medical-records/patient/${patientId}/timeline`, {
+    headers: authHeaders(token),
+    tags: {
+      flow: "medical-records",
+      endpoint: "timeline"
+    }
+  });
+
+  const payload = parseJson(response);
+  checkResponse(response, "get medical timeline", {
+    expectedStatus: 200,
+    extraChecks: {
+      "get medical timeline returns array": () => Array.isArray(payload)
+    }
+  });
+
+  return Array.isArray(payload) ? payload : [];
+}
+
 export function listNotifications(token, unreadOnly = false) {
   const path = unreadOnly ? "/api/notifications/unread" : "/api/notifications";
   const endpoint = unreadOnly ? "unread" : "list";
@@ -351,16 +759,32 @@ export function markAllNotificationsAsRead(token) {
 }
 
 export function findNotificationByTriage(notifications, triageId) {
-  return notifications.find((notification) => String(notification.sourceAggregateId) === String(triageId));
+  return findNotificationByAggregate(notifications, triageId);
 }
 
-export function waitForNotification(token, triageId, options = {}) {
+export function findNotificationByAggregate(notifications, aggregateId, expectedTypes = []) {
+  return notifications.find((notification) => {
+    const aggregateMatches = String(notification.sourceAggregateId) === String(aggregateId);
+    if (!aggregateMatches) {
+      return false;
+    }
+
+    if (!expectedTypes.length) {
+      return true;
+    }
+
+    return expectedTypes.includes(notification.type);
+  });
+}
+
+export function waitForNotification(token, aggregateId, options = {}) {
   const attempts = Number(options.attempts || 5);
   const pauseSeconds = Number(options.pauseSeconds || 2);
+  const expectedTypes = Array.isArray(options.expectedTypes) ? options.expectedTypes : [];
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const unread = listNotifications(token, true);
-    const relatedNotification = findNotificationByTriage(unread, triageId);
+    const relatedNotification = findNotificationByAggregate(unread, aggregateId, expectedTypes);
     if (relatedNotification) {
       return relatedNotification;
     }

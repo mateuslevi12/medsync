@@ -108,6 +108,8 @@ jobs:
             context: backend/patients-service
           - image_name: medsync-triage-service
             context: backend/triage-service
+          - image_name: medsync-medical-record-service
+            context: backend/medical-record-service
           - image_name: medsync-notifications-service
             context: backend/notifications-service
           - image_name: medsync-frontend

@@ -1,6 +1,5 @@
-function digitsOnly(value?: string) {
-  return (value ?? "").replace(/\D/g, "");
-}
+import { formatCpf, formatPhone } from "@/lib/input-masks";
+import { onlyDigits } from "@/lib/input-sanitizers";
 
 export function formatPatientGender(value?: string) {
   const normalized = (value ?? "").toUpperCase();
@@ -27,24 +26,20 @@ export function formatPatientDate(value?: string) {
 }
 
 export function formatPatientDocument(value?: string) {
-  const digits = digitsOnly(value);
+  const digits = onlyDigits(value || "");
 
   if (digits.length !== 11) {
     return value || "Não informado";
   }
 
-  return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  return formatCpf(digits);
 }
 
 export function formatPatientPhone(value?: string) {
-  const digits = digitsOnly(value);
+  const digits = onlyDigits(value || "");
 
-  if (digits.length === 11) {
-    return digits.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  }
-
-  if (digits.length === 10) {
-    return digits.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  if (digits.length === 10 || digits.length === 11) {
+    return formatPhone(digits);
   }
 
   return value || "Não informado";

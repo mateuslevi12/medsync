@@ -12,6 +12,7 @@ public record PatientResponse(
         Gender gender,
         String phone,
         String documentNumber,
+        String cns,
         String address,
         Instant createdAt,
         Instant updatedAt

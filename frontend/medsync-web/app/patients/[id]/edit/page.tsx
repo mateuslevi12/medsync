@@ -5,6 +5,7 @@ import { CalendarDays, FilePenLine, MapPin, Phone, RefreshCw, ShieldCheck } from
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { MaskedInput } from "@/components/form/masked-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,10 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest, parseApiError } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { mapPatientFormToPayload } from "@/lib/form-mappers";
+import { formatBirthDate, formatCns, formatCpf, formatPhone } from "@/lib/input-masks";
+import { sanitizeAddress, sanitizeCns, sanitizeCpf, sanitizeName, sanitizePhone } from "@/lib/input-sanitizers";
+import { formatIsoDateToBrazilian, validateBirthDate, validateCns, validateCpf, validatePhone, validateRequiredText } from "@/lib/input-validators";
 import { formatPatientDocument, formatPatientPhone } from "@/lib/patient";
 
 type Patient = {
@@ -22,6 +27,7 @@ type Patient = {
   gender: string;
   phone: string;
   documentNumber: string;
+  cns?: string | null;
   address: string;
 };
 
@@ -34,7 +40,9 @@ export default function EditPatientPage() {
   const [gender, setGender] = useState("MALE");
   const [phone, setPhone] = useState("");
   const [documentNumber, setDocumentNumber] = useState("");
+  const [cns, setCns] = useState("");
   const [address, setAddress] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingPatient, setLoadingPatient] = useState(true);
@@ -49,10 +57,11 @@ export default function EditPatientPage() {
       try {
         const patient = await apiRequest<Patient>(`/api/patients/${params.id}`);
         setFullName(patient.fullName);
-        setBirthDate(patient.birthDate);
+        setBirthDate(formatIsoDateToBrazilian(patient.birthDate));
         setGender(patient.gender);
         setPhone(patient.phone);
         setDocumentNumber(patient.documentNumber);
+        setCns(patient.cns || "");
         setAddress(patient.address);
       } catch (rawError) {
         const parsed = parseApiError(rawError);
@@ -68,19 +77,42 @@ export default function EditPatientPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    const nextErrors: Record<string, string> = {};
+    const fullNameError = validateRequiredText(fullName, { message: "Informe o nome completo." });
+    const birthDateError = validateBirthDate(birthDate);
+    const phoneError = validatePhone(phone);
+    const cpfError = validateCpf(documentNumber) || validateRequiredText(documentNumber, { message: "CPF deve conter 11 dígitos." });
+    const cnsError = validateCns(cns, false);
+    const addressError = validateRequiredText(address, { message: "Informe o endereço." });
+
+    if (fullNameError) nextErrors.fullName = fullNameError;
+    if (birthDateError) nextErrors.birthDate = birthDateError;
+    if (phoneError) nextErrors.phone = phoneError;
+    if (cpfError) nextErrors.documentNumber = cpfError;
+    if (cnsError) nextErrors.cns = cnsError;
+    if (addressError) nextErrors.address = addressError;
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const payload = mapPatientFormToPayload({
+        fullName,
+        birthDate,
+        gender,
+        phone,
+        documentNumber,
+        cns,
+        address,
+      });
+
       await apiRequest(`/api/patients/${params.id}`, {
         method: "PUT",
-        body: {
-          fullName,
-          birthDate,
-          gender,
-          phone,
-          documentNumber,
-          address
-        }
+        body: payload
       });
 
       router.push(`/patients/${params.id}`);
@@ -118,15 +150,40 @@ export default function EditPatientPage() {
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="fullName">Nome completo</Label>
-                    <Input id="fullName" value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(event) => {
+                        setFieldErrors((current) => ({ ...current, fullName: "" }));
+                        setFullName(sanitizeName(event.target.value));
+                      }}
+                      maxLength={120}
+                      required
+                    />
+                    {fieldErrors.fullName ? <p className="text-sm text-destructive">{fieldErrors.fullName}</p> : null}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="birthDate">Data de nascimento</Label>
                     <div className="relative">
                       <CalendarDays className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input id="birthDate" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} className="pl-11" required />
+                      <MaskedInput
+                        id="birthDate"
+                        value={birthDate}
+                        onChange={(value) => {
+                          setFieldErrors((current) => ({ ...current, birthDate: "" }));
+                          setBirthDate(value);
+                        }}
+                        sanitizer={(value) => value.replace(/\D/g, "").slice(0, 8)}
+                        mask={formatBirthDate}
+                        maxLength={10}
+                        className="pl-11"
+                        placeholder="DD/MM/AAAA"
+                        inputMode="numeric"
+                        required
+                      />
                     </div>
+                    {fieldErrors.birthDate ? <p className="text-sm text-destructive">{fieldErrors.birthDate}</p> : null}
                   </div>
 
                   <div className="space-y-2">
@@ -142,21 +199,76 @@ export default function EditPatientPage() {
                     <Label htmlFor="phone">Telefone</Label>
                     <div className="relative">
                       <Phone className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input id="phone" value={phone} onChange={(event) => setPhone(event.target.value)} className="pl-11" required />
+                      <MaskedInput
+                        id="phone"
+                        value={phone}
+                        onChange={(value) => {
+                          setFieldErrors((current) => ({ ...current, phone: "" }));
+                          setPhone(value);
+                        }}
+                        sanitizer={sanitizePhone}
+                        mask={formatPhone}
+                        maxLength={15}
+                        className="pl-11"
+                        inputMode="tel"
+                        required
+                      />
                     </div>
+                    {fieldErrors.phone ? <p className="text-sm text-destructive">{fieldErrors.phone}</p> : null}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="documentNumber">CPF</Label>
-                    <Input id="documentNumber" value={documentNumber} onChange={(event) => setDocumentNumber(event.target.value)} required />
+                    <MaskedInput
+                      id="documentNumber"
+                      value={documentNumber}
+                      onChange={(value) => {
+                        setFieldErrors((current) => ({ ...current, documentNumber: "" }));
+                        setDocumentNumber(value);
+                      }}
+                      sanitizer={sanitizeCpf}
+                      mask={formatCpf}
+                      maxLength={14}
+                      inputMode="numeric"
+                      required
+                    />
+                    {fieldErrors.documentNumber ? <p className="text-sm text-destructive">{fieldErrors.documentNumber}</p> : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cns">CNS</Label>
+                    <MaskedInput
+                      id="cns"
+                      value={cns}
+                      onChange={(value) => {
+                        setFieldErrors((current) => ({ ...current, cns: "" }));
+                        setCns(value);
+                      }}
+                      sanitizer={sanitizeCns}
+                      mask={formatCns}
+                      maxLength={19}
+                      inputMode="numeric"
+                    />
+                    {fieldErrors.cns ? <p className="text-sm text-destructive">{fieldErrors.cns}</p> : null}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="address">Endereço</Label>
                     <div className="relative">
                       <MapPin className="pointer-events-none absolute left-4 top-4 size-4 text-muted-foreground" />
-                      <Textarea id="address" value={address} onChange={(event) => setAddress(event.target.value)} className="pl-11" required />
+                      <Textarea
+                        id="address"
+                        value={address}
+                        onChange={(event) => {
+                          setFieldErrors((current) => ({ ...current, address: "" }));
+                          setAddress(sanitizeAddress(event.target.value));
+                        }}
+                        maxLength={255}
+                        className="pl-11"
+                        required
+                      />
                     </div>
+                    {fieldErrors.address ? <p className="text-sm text-destructive">{fieldErrors.address}</p> : null}
                   </div>
                 </div>
 

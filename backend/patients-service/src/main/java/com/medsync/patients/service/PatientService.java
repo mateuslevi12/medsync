@@ -34,6 +34,7 @@ public class PatientService {
                 .gender(request.gender())
                 .phone(request.phone().trim())
                 .documentNumber(request.documentNumber().trim())
+                .cns(trimToNull(request.cns()))
                 .address(request.address().trim())
                 .build();
 
@@ -96,6 +97,7 @@ public class PatientService {
         patient.setGender(request.gender());
         patient.setPhone(request.phone().trim());
         patient.setDocumentNumber(request.documentNumber().trim());
+        patient.setCns(trimToNull(request.cns()));
         patient.setAddress(request.address().trim());
 
         Patient updated = patientRepository.save(patient);
@@ -135,9 +137,18 @@ public class PatientService {
                 patient.getGender(),
                 patient.getPhone(),
                 patient.getDocumentNumber(),
+                patient.getCns(),
                 patient.getAddress(),
                 patient.getCreatedAt(),
                 patient.getUpdatedAt()
         );
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

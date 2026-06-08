@@ -1,136 +1,194 @@
-# Entrega Final - Semanas 7-8
+# Entrega Final - MedSync Completo
+
+Data de consolidacao: 2026-06-02
 
 ## Resumo executivo
 
-O MedSync foi concluido como uma plataforma distribuida de gestao hospitalar preparada para demonstracao academica. O sistema integra frontend, API Gateway, microservices Spring Boot, mensageria Kafka, cache Redis, monitoramento com Prometheus e Grafana, deploy local com Docker Compose, deploy preparavel em Kubernetes, pipelines de CI/CD e testes de carga com k6.
+O MedSync saiu do estado "fluxo hospitalar persistido basico" e passou a ter:
 
-## 1. Objetivo da etapa
+- `medical-record-service` dedicado
+- MongoDB real para prontuario
+- API Gateway apontando `/api/medical-records/**` para o novo servico
+- sincronizacao interna do `triage-service`
+- timeline clinica longitudinal
+- dashboard, monitoramento e relatorios usando dados reais com fallback demo
+- Compose, Kubernetes, CI/CD e observabilidade atualizados para o novo servico
 
-A etapa final das Semanas 7-8 foi focada em:
+Objetivo preservado:
 
-- deploy
-- monitoramento
-- CI/CD
-- Kubernetes
-- testes de carga
-- documentacao
-- apresentacao
+- nao quebrar o frontend redesenhado
+- nao remover o fallback demo
+- nao quebrar o fluxo hospitalar ja validado
+- nao romper a compatibilidade do legado em `triage-service`
 
-## 2. Estado final do sistema
+## O que foi entregue
 
-O estado final do MedSync inclui:
+### `medical-record-service`
 
-- autenticacao JWT
-- arquitetura distribuida baseada em microservices
-- API Gateway como ponto unico de entrada
-- Kafka para comunicacao assincrona
-- Redis para cache distribuido
-- Prometheus e Grafana para observabilidade
-- manifests Kubernetes com staging e production
-- CI/CD com GitHub Actions
-- testes de carga com k6
+Novo microservice em `backend/medical-record-service` com:
 
-## 3. Entregaveis concluidos
+- Java 17
+- Spring Boot
+- Spring Data MongoDB
+- JWT + token interno
+- Actuator + Prometheus
+- porta `8086`
 
-- Sistema preparado para implantacao em Kubernetes
-- Dois ambientes previstos:
-  - `medsync-staging`
-  - `medsync-production`
-- Monitoramento com Prometheus e Grafana
-- CI/CD com GitHub Actions
-- Testes de carga com k6
-- Documentacao final
-- Roteiro de demonstracao e video
+Capacidades:
 
-## 4. Relacao com o cronograma do projeto
+- `GET /api/medical-records/patient/{patientId}`
+- `GET /api/medical-records/patient/{patientId}/timeline`
+- `POST /api/medical-records/patient/{patientId}/triage-records`
+- `POST /api/medical-records/patient/{patientId}/medical-attendances`
+- `POST /api/medical-records/patient/{patientId}/timeline-events`
+- `GET /api/medical-records/summary`
+- endpoints internos para snapshot e sync do fluxo ambulatorial
 
-Atividades da Semana 7-8:
+### `triage-service`
 
-- Configuracao de CI/CD: concluida
-- Deploy em Kubernetes: manifests e overlays criados para dois ambientes
-- Monitoramento com Prometheus e Grafana: concluido
-- Testes de carga: concluido
-- Ajustes finais: concluido
-- Producao de documentacao e video: documentacao e roteiros criados
+Mantido como fonte operacional da fila, mas agora sincronizando o prontuario:
 
-Entregaveis mapeados:
+- ao criar atendimento: snapshot inicial
+- ao concluir triagem: envio da triagem consolidada ao MongoDB
+- ao finalizar atendimento medico: envio do atendimento ao MongoDB
+- publicacao Kafka preservada
+- persistencia relacional local preservada para compatibilidade
 
-- Sistema implantavel na nuvem com dois clusters: preparado com `staging` e `production`
-- Dashboard de monitoramento: `MedSync Overview`
-- Documentacao final: `docs/*`
-- Apresentacao do projeto: roteiro de demo e roteiro de video criados
+### `patients-service`
 
-## 5. Validacoes realizadas
+Continua responsavel por:
 
-Validacoes tecnicas executadas ao longo da etapa:
+- cadastro de pacientes
+- alergias
+- vacinas
+- CNS
+- cache Redis
 
-- `npm run build` em `frontend/medsync-web`
-- `docker compose config`
-- `kubectl kustomize k8s/base`
-- `kubectl kustomize k8s/overlays/staging`
-- `kubectl kustomize k8s/overlays/production`
-- `actionlint`
-- smoke tests com k6
-- Prometheus com `6/6` targets `UP`
-- Grafana com datasource e dashboard provisionados
+### `api-gateway`
 
-## 6. Resultados dos testes de carga
+Agora roteia:
 
-`login.js` em smoke:
+- `/api/ambulatory/**` -> `triage-service`
+- `/api/medical-records/**` -> `medical-record-service`
 
-- 422 requisicoes
-- 0 falhas
-- `p95 = 73.35ms`
-- `checks = 100%`
+### `frontend`
 
-`full-flow.js` em smoke:
+Rotas conectadas ao backend real:
 
-- 98 requisicoes
-- 14 iteracoes completas
-- 0 falhas
-- `p95 = 75.01ms`
-- `checks = 100%`
-- media por iteracao de aproximadamente `2.15s`
+- `/dashboard`
+- `/monitoramento`
+- `/relatorios`
+- `/fila-atendimento`
+- `/acolhimento/[id]`
+- `/atendimento-medico/[id]`
+- `/patients`
+- `/patients/[id]/record`
+- `/patients/[id]/timeline`
+- `/notificacoes`
 
-O `full-flow` valida o fluxo distribuido:
+Melhorias de UX:
 
-`login -> paciente -> triagem -> Kafka/notificacoes`
+- sessao invalida agora redireciona para `/login`
+- telas analiticas exibem erro explicito quando a API falha e o demo esta desligado
 
-## 7. Problema real encontrado nos testes
+## Infraestrutura atualizada
 
-Os testes de carga encontraram uma falha real no `patients-service`.
+- `docker-compose.yml` com `mongodb` e `medical-record-service`
+- `k8s/base` com manifests novos para MongoDB e `medical-record-service`
+- overlays `staging`, `production` e `vps-production` atualizados
+- Prometheus com scrape adicional em `medical-record-service:8086`
+- workflows de CI/CD e docker build atualizados para a nova imagem
+- Dockerfiles Java reforcados com cache Maven + `dependency:go-offline`
 
-Sintoma:
+## Validacoes executadas
 
-- `GET /api/patients/{id}` retornava `500 Internal Server Error`
+### Build
 
-Causa:
+- `cd frontend/medsync-web && npm run build`: `OK`
+- `backend/api-gateway`: `OK`
+- `backend/triage-service`: `OK`
+- `backend/medical-record-service`: `OK`
 
-- serializacao de `LocalDate` no cache Redis do `patients-service`
+### Infra
 
-Correcao aplicada:
+- `docker compose config`: `OK`
+- `kubectl kustomize k8s/base`: `OK`
+- `kubectl kustomize k8s/overlays/staging`: `OK`
+- `kubectl kustomize k8s/overlays/production`: `OK`
+- `kubectl kustomize k8s/overlays/vps-production`: `OK`
+- parse de `.github/workflows/*.yml`: `OK`
+- `docker compose up --build -d`: `OK`
 
-- ajuste em `CacheConfig.java`
-- reutilizacao da mesma estrategia de serializacao com `JavaTimeModule` ja empregada no `triage-service`
+### Health e observabilidade
 
-Esse ponto serve como evidencia de maturidade da etapa de avaliacao, porque os testes nao apenas executaram o sistema, mas revelaram e ajudaram a corrigir um problema real de runtime.
+- healthchecks `:8080..:8086/actuator/health`: `OK`
+- Prometheus target `medical-record-service:8086`: `UP`
+- Grafana `/api/datasources`: datasource `Prometheus` disponivel
 
-## 8. Limitacoes conhecidas
+### Fluxo hospitalar via API
 
-- o deploy real em cluster depende de credenciais e kubeconfigs
-- os manifests usam placeholders de registry, dominios e secrets
-- o failover entre `staging` e `production` e manual, nao automatico
-- os componentes stateful foram simplificados com `Deployment + PVC`
-- o teste de carga completo com stages maiores foi implementado, mas apenas smoke foi executado localmente
-- Kafka e validado indiretamente no k6 pelo encadeamento `triagem -> notificacao`
+Smoke funcional reexecutado:
 
-## 9. Proximos passos possiveis
+- login
+- criar paciente
+- registrar alergia
+- registrar vacina
+- inserir em `POST /api/ambulatory/queue`
+- chamar triagem
+- concluir triagem
+- chamar medico
+- finalizar atendimento
+- consultar prontuario
+- consultar timeline
+- consultar notificacoes do atendimento
 
-- aplicar em cloud real
-- configurar DNS e TLS
-- usar banco gerenciado
-- configurar HPA
-- usar `StatefulSet` ou operadores para stateful
-- centralizar logs
-- configurar failover automatico
-- rodar o teste de carga completo em cluster
+Resultado observado:
+
+- `patientId = 706`
+- `attendanceId = 628`
+- `AGUARDANDO_TRIAGEM -> EM_TRIAGEM -> AGUARDANDO_MEDICO -> EM_ATENDIMENTO_MEDICO -> FINALIZADO`
+- `1` triagem no prontuario
+- `1` atendimento medico no prontuario
+- `12` eventos de timeline
+- `7` notificacoes relacionadas ao atendimento
+
+### Teste de carga
+
+Smoke do mesmo script `tests/load/full-flow.js` com `LOAD_PROFILE=smoke`:
+
+- `13` iteracoes
+- `312` requisicoes HTTP
+- `0.00%` falha HTTP
+- `checks = 100.00%`
+- `p95 = 49.22ms`
+
+### Validacao visual
+
+Verificacao manual em navegador:
+
+- `/dashboard`
+- `/monitoramento`
+- `/relatorios`
+
+Confirmado:
+
+- dados reais carregando apos login valido
+- contadores coerentes com fila, notificacoes e MongoDB
+- status tecnico exibindo `Medical Record Service` e `MongoDB` como `Online`
+
+## Limitacoes restantes
+
+- o prontuario agora e separado e longitudinal para o fluxo ambulatorial, mas ainda nao substitui um prontuario eletronico hospitalar completo
+- os botoes `Gerar` em relatorios ainda sao placeholders de UX
+- o `triage-service` continua guardando snapshot local e endpoints legados por compatibilidade
+- a consistencia entre fila, prontuario e notificacoes e eventual, nao transacional entre servicos
+
+## Conclusao
+
+O projeto ficou estruturalmente mais completo e mais defensavel tecnicamente:
+
+- prontuario separado
+- MongoDB funcional
+- gateway e observabilidade coerentes com a arquitetura
+- frontend consumindo dados reais nas telas analiticas
+- stack local, manifests, workflows e script de carga validados com o novo desenho

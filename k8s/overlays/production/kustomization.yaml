@@ -23,6 +23,9 @@ images:
   - name: medsync-triage-service
     newName: ghcr.io/your-user/medsync-triage-service
     newTag: production
+  - name: medsync-medical-record-service
+    newName: ghcr.io/your-user/medsync-medical-record-service
+    newTag: production
   - name: medsync-notifications-service
     newName: ghcr.io/your-user/medsync-notifications-service
     newTag: production
@@ -41,6 +44,8 @@ replicas:
     count: 2
   - name: triage-service
     count: 2
+  - name: medical-record-service
+    count: 2
   - name: notifications-service
     count: 2
 
@@ -50,6 +55,8 @@ patches:
   - path: patches/resources-auth-service.yaml
   - path: patches/resources-patients-service.yaml
   - path: patches/resources-triage-service.yaml
+  - path: patches/resources-medical-record-service.yaml
+  - path: patches/resources-mongodb.yaml
   - path: patches/resources-notifications-service.yaml
   - path: patches/platform-config.yaml
   - path: patches/frontend-config.yaml
