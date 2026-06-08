@@ -40,6 +40,38 @@ public class MedicalAttendance {
     @Column(columnDefinition = "TEXT")
     private String cidCodesJson;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String medicationsJson;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String proceduresJson;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String observationPrescriptionsJson;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String examsJson;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String orientationsJson;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String certificatesJson;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String declarationsJson;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String recipesJson;
+
     @Column(length = 255)
     private String notifications;
 

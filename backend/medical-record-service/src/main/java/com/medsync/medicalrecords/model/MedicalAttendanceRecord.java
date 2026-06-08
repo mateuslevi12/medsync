@@ -19,14 +19,15 @@ public class MedicalAttendanceRecord {
     private String assessment;
     private String plan;
     private String procedureCode;
-    @Builder.Default
-    private List<String> cidCodes = new ArrayList<>();
-    @Builder.Default
-    private List<String> exams = new ArrayList<>();
-    @Builder.Default
-    private List<String> medications = new ArrayList<>();
-    @Builder.Default
-    private List<String> prescriptions = new ArrayList<>();
+    private String cidCodesJson;
+    private String medicationsJson;
+    private String proceduresJson;
+    private String observationPrescriptionsJson;
+    private String examsJson;
+    private String orientationsJson;
+    private String certificatesJson;
+    private String declarationsJson;
+    private String recipesJson;
     private String notifications;
     private AccidentInfo accidentInfo;
     private String notes;

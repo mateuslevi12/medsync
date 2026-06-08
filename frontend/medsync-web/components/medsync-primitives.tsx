@@ -121,12 +121,12 @@ export function ActionListCard({
   return (
     <div
       className={cn(
-        "rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.04)]",
-        "flex min-w-[280px] flex-col gap-[14px] xl:sticky xl:top-[88px]",
+        "flex min-w-[280px] max-w-[300px] flex-col gap-[10px] rounded-2xl border border-[#E2E8F0] bg-white p-[14px]",
+        "shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.04)] xl:sticky xl:top-[88px]",
         className
       )}
     >
-      <div className="flex flex-col gap-[14px]">
+      <div className="flex flex-col gap-[10px]">
         {actions.map((action) => (
           <button
             key={action}
@@ -134,8 +134,8 @@ export function ActionListCard({
             onClick={() => onActionClick?.(action)}
             disabled={disabledActions.includes(action)}
             className={cn(
-              "flex min-h-[56px] w-full items-center justify-start rounded-[10px] border-2 px-5 text-left text-[18px] font-semibold leading-[1.2]",
-              "shadow-[0_2px_4px_rgba(15,23,42,0.06)] transition-all duration-150 ease-in-out",
+              "flex h-12 min-h-12 w-full items-center justify-start rounded-[10px] border px-[14px] text-left text-[15px] font-semibold leading-5",
+              "shadow-[0_1px_2px_rgba(15,23,42,0.06)] transition-all duration-150 ease-in-out",
               "bg-[#EFF6FF] border-[#DBEAFE] text-[#111827] hover:-translate-y-[1px] hover:bg-[#DBEAFE] hover:border-[#BFDBFE] active:translate-y-0 active:bg-[#BFDBFE]",
               "disabled:cursor-not-allowed disabled:border-[#E2E8F0] disabled:bg-[#F1F5F9] disabled:text-[#94A3B8] disabled:shadow-none disabled:hover:translate-y-0"
             )}

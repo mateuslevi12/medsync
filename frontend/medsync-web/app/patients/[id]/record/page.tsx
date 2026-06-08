@@ -517,23 +517,38 @@ export default function PatientRecordPage() {
   const municipality = deriveMunicipality(patient?.address) || "Não informado";
 
   const prescriptionItems = useMemo(() => {
-    const items = sortedAttendances.flatMap((attendance) =>
-      (attendance.prescriptions || []).map((prescription, index) => ({
-        id: `${attendance.id}-prescription-${index}`,
-        label: prescription,
-        date: attendance.completedAt || attendance.createdAt,
-      }))
-    );
+    const items = sortedAttendances.flatMap((attendance) => [
+      ...(attendance.medications || []).map((item) => ({
+        id: `${attendance.id}-medication-${item.id}`,
+        label: `${item.medicationName} — ${item.dosage}`,
+        date: item.scheduledAt || attendance.completedAt || attendance.createdAt,
+      })),
+      ...(attendance.procedures || []).map((item) => ({
+        id: `${attendance.id}-procedure-${item.id}`,
+        label: `${item.procedureName}${item.observations ? ` — ${item.observations}` : ""}`,
+        date: item.scheduledAt || attendance.completedAt || attendance.createdAt,
+      })),
+      ...(attendance.observationPrescriptions || []).map((item) => ({
+        id: `${attendance.id}-observation-${item.id}`,
+        label: `${item.title} — ${item.description}`,
+        date: item.createdAt || attendance.completedAt || attendance.createdAt,
+      })),
+      ...(attendance.recipes || []).map((item) => ({
+        id: `${attendance.id}-recipe-${item.id}`,
+        label: `${item.recipeType === "ESPECIAL" ? "Receita especial" : "Receita comum"} — ${item.text}`,
+        date: item.createdAt || attendance.completedAt || attendance.createdAt,
+      })),
+    ]);
 
     return items.filter((item) => hasText(item.label));
   }, [sortedAttendances]);
 
   const examItems = useMemo(() => {
     const items = sortedAttendances.flatMap((attendance) =>
-      (attendance.exams || []).map((exam, index) => ({
-        id: `${attendance.id}-exam-${index}`,
-        label: exam,
-        date: attendance.completedAt || attendance.createdAt,
+      (attendance.exams || []).map((exam) => ({
+        id: `${attendance.id}-exam-${exam.id}`,
+        label: exam.examName,
+        date: exam.createdAt || attendance.completedAt || attendance.createdAt,
       }))
     );
 
@@ -798,6 +813,61 @@ export default function PatientRecordPage() {
                                         {cidLabel(code)}
                                       </span>
                                     ))}
+                                  </div>
+                                ) : null}
+
+                                {attendance.medications.length ||
+                                attendance.procedures.length ||
+                                attendance.observationPrescriptions.length ||
+                                attendance.recipes.length ? (
+                                  <div>
+                                    <p className="text-[11px] font-extrabold uppercase tracking-[0.03em] text-[#64748B]">Condutas registradas</p>
+                                    <div className="mt-2 space-y-2">
+                                      {attendance.medications.map((item) => (
+                                        <p key={`${attendance.id}-med-${item.id}`} className="text-[13px] text-[#0F172A]">
+                                          Medicamento: {item.medicationName} — {item.dosage}
+                                        </p>
+                                      ))}
+                                      {attendance.procedures.map((item) => (
+                                        <p key={`${attendance.id}-proc-${item.id}`} className="text-[13px] text-[#0F172A]">
+                                          Procedimento: {item.procedureName}
+                                          {item.observations ? ` — ${item.observations}` : ""}
+                                        </p>
+                                      ))}
+                                      {attendance.observationPrescriptions.map((item) => (
+                                        <p key={`${attendance.id}-obs-${item.id}`} className="text-[13px] text-[#0F172A]">
+                                          Observação: {item.title} — {item.description}
+                                        </p>
+                                      ))}
+                                      {attendance.recipes.map((item) => (
+                                        <p key={`${attendance.id}-recipe-${item.id}`} className="text-[13px] text-[#0F172A]">
+                                          Receita {item.recipeType === "ESPECIAL" ? "especial" : "comum"} — {item.text}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {attendance.orientations.length || attendance.certificates.length || attendance.declarations.length ? (
+                                  <div>
+                                    <p className="text-[11px] font-extrabold uppercase tracking-[0.03em] text-[#64748B]">Documentos emitidos</p>
+                                    <div className="mt-2 space-y-2">
+                                      {attendance.orientations.map((item) => (
+                                        <p key={`${attendance.id}-ori-${item.id}`} className="text-[13px] text-[#0F172A]">
+                                          Orientação: {item.title} — {item.text}
+                                        </p>
+                                      ))}
+                                      {attendance.certificates.map((item) => (
+                                        <p key={`${attendance.id}-cert-${item.id}`} className="text-[13px] text-[#0F172A]">
+                                          Atestado: {item.days} dia(s) a partir de {formatDate(item.startDate)}
+                                        </p>
+                                      ))}
+                                      {attendance.declarations.map((item) => (
+                                        <p key={`${attendance.id}-dec-${item.id}`} className="text-[13px] text-[#0F172A]">
+                                          Declaração: {item.text}
+                                        </p>
+                                      ))}
+                                    </div>
                                   </div>
                                 ) : null}
                               </div>

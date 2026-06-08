@@ -1,4 +1,4 @@
-import type { TimelineEventType } from "@/lib/types";
+import type { MedicalConductsState, TimelineEventType } from "@/lib/types";
 
 export type RiskLevel =
   | "EMERGÊNCIA"
@@ -75,6 +75,7 @@ export type MedicalEncounter = {
   selectedCid: string[];
   notificationsLabel: string;
   accidentReasons: string[];
+  conducts: MedicalConductsState;
 };
 
 export type NotificationItem = {
@@ -203,6 +204,102 @@ export const demoMedicalByPatientId: Record<string, MedicalEncounter> = {
     selectedCid: ["R51", "I10"],
     notificationsLabel: "Sem notificações adicionais.",
     accidentReasons: [],
+    conducts: {
+      medications: [
+        {
+          id: "med-1",
+          medicationName: "Paracetamol 750mg",
+          protocol: "",
+          scheduledAt: "2026-06-07T19:50:00.000Z",
+          dosage: "1 cp VO 8/8h por 3 dias",
+          status: "SALVO",
+          createdAt: "2026-06-07T19:45:49.000Z",
+        },
+      ],
+      procedures: [
+        {
+          id: "proc-1",
+          procedureName: "Monitorização de pressão arterial",
+          protocol: "",
+          scheduledAt: "2026-06-07T19:55:00.000Z",
+          observations: "Aferir PA a cada 30 minutos.",
+          status: "REALIZADO",
+          createdAt: "2026-06-07T19:46:10.000Z",
+        },
+      ],
+      observationPrescriptions: [
+        {
+          id: "obs-1",
+          title: "Observação clínica",
+          description: "Manter em observação por 2 horas com reavaliação se persistir cefaleia.",
+          observationTime: "2 horas",
+          status: "SALVO",
+          createdAt: "2026-06-07T19:46:40.000Z",
+        },
+      ],
+      exams: [
+        {
+          id: "exam-1",
+          examName: "Hemograma completo",
+          protocol: "",
+          observations: "Coletar ainda hoje.",
+          status: "SOLICITADO",
+          createdAt: "2026-06-07T19:47:00.000Z",
+        },
+        {
+          id: "exam-2",
+          examName: "Glicemia de jejum",
+          protocol: "",
+          observations: "",
+          status: "SOLICITADO",
+          createdAt: "2026-06-07T19:47:20.000Z",
+        },
+      ],
+      orientations: [
+        {
+          id: "ori-1",
+          title: "Orientações gerais",
+          text: "Manter hidratação, repouso e retorno imediato em caso de piora da dor.",
+          status: "SALVO",
+          createdAt: "2026-06-07T19:48:00.000Z",
+        },
+      ],
+      certificates: [
+        {
+          id: "cert-1",
+          issueDate: "2026-06-07",
+          startDate: "2026-06-07",
+          days: 1,
+          text: "Atesto, para os devidos fins, que ABDA BARBOZA DOS SANTOS recebeu atendimento e deverá permanecer afastada por 1 dia.",
+          includeCidCode: false,
+          includeCidDescription: false,
+          status: "SALVO",
+          createdAt: "2026-06-07T19:49:00.000Z",
+        },
+      ],
+      declarations: [
+        {
+          id: "dec-1",
+          startDateTime: "2026-06-07T18:45:00.000Z",
+          endDateTime: "2026-06-07T20:15:00.000Z",
+          text: "Declaro que a paciente permaneceu no hospital no período informado.",
+          status: "SALVO",
+          createdAt: "2026-06-07T19:49:30.000Z",
+        },
+      ],
+      recipes: [
+        {
+          id: "rec-1",
+          fillMode: "PADRAO",
+          recipeType: "COMUM",
+          favoriteName: "Analgésico",
+          text: "Paracetamol 750mg, tomar 1 comprimido VO a cada 8 horas por 3 dias.",
+          saveAsFavorite: true,
+          status: "SALVO",
+          createdAt: "2026-06-07T19:50:00.000Z",
+        },
+      ],
+    },
   },
 };
 
@@ -216,6 +313,7 @@ export const demoUsers = [
 const DEMO_PATIENTS_STORAGE_KEY = "medsync.demo.patients.v2";
 const DEMO_QUEUE_STORAGE_KEY = "medsync.demo.queue.v2";
 const DEMO_TRIAGE_STORAGE_KEY = "medsync.demo.triage.v2";
+const DEMO_MEDICAL_STORAGE_KEY = "medsync.demo.medical.v2";
 
 export const demoNotifications: NotificationItem[] = [
   {
@@ -440,7 +538,19 @@ export function getTriageByPatientId(id: string) {
 }
 
 export function getMedicalByPatientId(id: string) {
-  return demoMedicalByPatientId[id] || null;
+  const medicalByPatientId = readStoredValue<Record<string, MedicalEncounter>>(DEMO_MEDICAL_STORAGE_KEY, demoMedicalByPatientId);
+  return medicalByPatientId[id] || null;
+}
+
+export function upsertDemoMedical(patientId: string, medical: MedicalEncounter) {
+  const current = readStoredValue<Record<string, MedicalEncounter>>(DEMO_MEDICAL_STORAGE_KEY, demoMedicalByPatientId);
+  const next = {
+    ...current,
+    [patientId]: medical,
+  };
+
+  writeStoredValue(DEMO_MEDICAL_STORAGE_KEY, next);
+  return next[patientId];
 }
 
 export function getDashboardMetrics() {

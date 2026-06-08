@@ -1,8 +1,9 @@
 package com.medsync.medicalrecords.dto;
 
+import com.medsync.medicalrecords.dto.MedicalConductDtos.*;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
@@ -26,11 +27,14 @@ public record CreateMedicalAttendanceRequest(
 
         List<@Pattern(regexp = "^[A-Z]\\d{2}(\\.\\d{1,4})?$", message = "CID deve estar em formato válido") String> cidCodes,
 
-        List<@Size(max = 255, message = "exame deve ter no máximo 255 caracteres") String> exams,
-
-        List<@Size(max = 255, message = "medicamento deve ter no máximo 255 caracteres") String> medications,
-
-        List<@Size(max = 255, message = "prescrição deve ter no máximo 255 caracteres") String> prescriptions,
+        List<@Valid MedicationConductDto> medications,
+        List<@Valid ProcedureConductDto> procedures,
+        List<@Valid ObservationPrescriptionConductDto> observationPrescriptions,
+        List<@Valid ExamConductDto> exams,
+        List<@Valid OrientationConductDto> orientations,
+        List<@Valid CertificateConductDto> certificates,
+        List<@Valid DeclarationConductDto> declarations,
+        List<@Valid RecipeConductDto> recipes,
 
         @Size(max = 255, message = "notificações devem ter no máximo 255 caracteres")
         @Pattern(regexp = "^[^<>]*$", message = "notificações contêm caracteres inválidos")

@@ -1,8 +1,10 @@
 package com.medsync.triage.dto;
 
-import jakarta.validation.constraints.Pattern;
+import com.medsync.triage.dto.MedicalConductDtos.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -21,6 +23,15 @@ public record FinishMedicalAttendanceRequest(
         String procedureCode,
 
         List<@Pattern(regexp = "^[A-Z]\\d{2}(\\.\\d{1,4})?$", message = "CID deve estar em formato válido") String> cidCodes,
+
+        List<@Valid MedicationConductDto> medications,
+        List<@Valid ProcedureConductDto> procedures,
+        List<@Valid ObservationPrescriptionConductDto> observationPrescriptions,
+        List<@Valid ExamConductDto> exams,
+        List<@Valid OrientationConductDto> orientations,
+        List<@Valid CertificateConductDto> certificates,
+        List<@Valid DeclarationConductDto> declarations,
+        List<@Valid RecipeConductDto> recipes,
 
         @Size(max = 255, message = "notificações deve ter no máximo 255 caracteres")
         @Pattern(regexp = "^[^<>]*$", message = "notificações contêm caracteres inválidos")

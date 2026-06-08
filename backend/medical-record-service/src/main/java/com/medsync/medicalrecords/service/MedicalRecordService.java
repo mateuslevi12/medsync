@@ -1,6 +1,10 @@
 package com.medsync.medicalrecords.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medsync.medicalrecords.dto.*;
+import com.medsync.medicalrecords.dto.MedicalConductDtos.*;
 import com.medsync.medicalrecords.exception.NotFoundException;
 import com.medsync.medicalrecords.model.*;
 import com.medsync.medicalrecords.repository.MedicalRecordRepository;
@@ -19,8 +23,18 @@ import java.util.stream.Collectors;
 public class MedicalRecordService {
 
     private static final ZoneId DEFAULT_ZONE = ZoneId.of("America/Fortaleza");
+    private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<MedicationConductDto>> MEDICATIONS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<ProcedureConductDto>> PROCEDURES_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<ObservationPrescriptionConductDto>> OBSERVATION_PRESCRIPTIONS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<ExamConductDto>> EXAMS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<OrientationConductDto>> ORIENTATIONS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<CertificateConductDto>> CERTIFICATES_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<DeclarationConductDto>> DECLARATIONS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<RecipeConductDto>> RECIPES_TYPE = new TypeReference<>() {};
 
     private final MedicalRecordRepository medicalRecordRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public MedicalRecordResponse findByPatientId(Long patientId) {
@@ -93,10 +107,15 @@ public class MedicalRecordService {
                 .assessment(request.assessment().trim())
                 .plan(request.plan().trim())
                 .procedureCode(trimToNull(request.procedureCode()))
-                .cidCodes(safeList(request.cidCodes()))
-                .exams(safeList(request.exams()))
-                .medications(safeList(request.medications()))
-                .prescriptions(safeList(request.prescriptions()))
+                .cidCodesJson(writeJson(safeStringList(request.cidCodes())))
+                .medicationsJson(writeJson(safeObjectList(request.medications())))
+                .proceduresJson(writeJson(safeObjectList(request.procedures())))
+                .observationPrescriptionsJson(writeJson(safeObjectList(request.observationPrescriptions())))
+                .examsJson(writeJson(safeObjectList(request.exams())))
+                .orientationsJson(writeJson(safeObjectList(request.orientations())))
+                .certificatesJson(writeJson(safeObjectList(request.certificates())))
+                .declarationsJson(writeJson(safeObjectList(request.declarations())))
+                .recipesJson(writeJson(safeObjectList(request.recipes())))
                 .notifications(trimToNull(request.notifications()))
                 .accidentInfo(AccidentInfo.builder()
                         .moto(Boolean.TRUE.equals(request.accidentMoto()))
@@ -421,9 +440,15 @@ public class MedicalRecordService {
                 medicalAttendance.getAssessment(),
                 medicalAttendance.getPlan(),
                 medicalAttendance.getProcedureCode(),
-                safeList(medicalAttendance.getCidCodes()),
-                safeList(medicalAttendance.getExams()),
-                safeList(medicalAttendance.getPrescriptions()),
+                readTypedList(medicalAttendance.getCidCodesJson(), STRING_LIST_TYPE),
+                readTypedList(medicalAttendance.getMedicationsJson(), MEDICATIONS_TYPE),
+                readTypedList(medicalAttendance.getProceduresJson(), PROCEDURES_TYPE),
+                readTypedList(medicalAttendance.getObservationPrescriptionsJson(), OBSERVATION_PRESCRIPTIONS_TYPE),
+                readTypedList(medicalAttendance.getExamsJson(), EXAMS_TYPE),
+                readTypedList(medicalAttendance.getOrientationsJson(), ORIENTATIONS_TYPE),
+                readTypedList(medicalAttendance.getCertificatesJson(), CERTIFICATES_TYPE),
+                readTypedList(medicalAttendance.getDeclarationsJson(), DECLARATIONS_TYPE),
+                readTypedList(medicalAttendance.getRecipesJson(), RECIPES_TYPE),
                 medicalAttendance.getNotifications(),
                 accidentInfo.isMoto(),
                 accidentInfo.isCarro(),
@@ -618,7 +643,7 @@ public class MedicalRecordService {
         medicalRecordRepository.save(record);
     }
 
-    private List<String> safeList(List<String> source) {
+    private List<String> safeStringList(List<String> source) {
         if (source == null || source.isEmpty()) {
             return new ArrayList<>();
         }
@@ -628,6 +653,36 @@ public class MedicalRecordService {
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .toList();
+    }
+
+    private <T> List<T> safeObjectList(List<T> source) {
+        if (source == null || source.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        return source.stream()
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value == null ? List.of() : value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Não foi possível serializar as condutas do atendimento médico", exception);
+        }
+    }
+
+    private <T> List<T> readTypedList(String value, TypeReference<List<T>> type) {
+        if (isBlank(value)) {
+            return List.of();
+        }
+
+        try {
+            return objectMapper.readValue(value, type);
+        } catch (JsonProcessingException exception) {
+            return List.of();
+        }
     }
 
     private Long stableNumericId(String value, Long fallback) {

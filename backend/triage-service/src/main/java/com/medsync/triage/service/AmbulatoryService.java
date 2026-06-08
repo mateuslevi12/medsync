@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medsync.triage.dto.*;
+import com.medsync.triage.dto.MedicalConductDtos.*;
 import com.medsync.triage.exception.NotFoundException;
 import com.medsync.triage.messaging.TriageEventProducer;
 import com.medsync.triage.model.*;
@@ -25,6 +26,14 @@ import java.util.List;
 public class AmbulatoryService {
 
     private static final TypeReference<List<VaccineSnapshot>> VACCINES_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<MedicationConductDto>> MEDICATIONS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<ProcedureConductDto>> PROCEDURES_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<ObservationPrescriptionConductDto>> OBSERVATION_PRESCRIPTIONS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<ExamConductDto>> EXAMS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<OrientationConductDto>> ORIENTATIONS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<CertificateConductDto>> CERTIFICATES_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<DeclarationConductDto>> DECLARATIONS_TYPE = new TypeReference<>() {};
+    private static final TypeReference<List<RecipeConductDto>> RECIPES_TYPE = new TypeReference<>() {};
 
     private final AmbulatoryAttendanceRepository ambulatoryAttendanceRepository;
     private final MedicalAttendanceRepository medicalAttendanceRepository;
@@ -203,6 +212,14 @@ public class AmbulatoryService {
                         .plan(request.plan().trim())
                         .procedureCode(trimToNull(request.procedureCode()))
                         .cidCodesJson(writeStringList(request.cidCodes()))
+                        .medicationsJson(writeJson(request.medications()))
+                        .proceduresJson(writeJson(request.procedures()))
+                        .observationPrescriptionsJson(writeJson(request.observationPrescriptions()))
+                        .examsJson(writeJson(request.exams()))
+                        .orientationsJson(writeJson(request.orientations()))
+                        .certificatesJson(writeJson(request.certificates()))
+                        .declarationsJson(writeJson(request.declarations()))
+                        .recipesJson(writeJson(request.recipes()))
                         .notifications(trimToNull(request.notifications()))
                         .accidentMoto(Boolean.TRUE.equals(request.accidentMoto()))
                         .accidentCarro(Boolean.TRUE.equals(request.accidentCarro()))
@@ -222,7 +239,7 @@ public class AmbulatoryService {
         AmbulatoryAttendance saved = ambulatoryAttendanceRepository.save(attendance);
 
         createTimeline(saved, TimelineEventType.ATENDIMENTO_MEDICO_FINALIZADO, "Atendimento médico finalizado", "Consulta finalizada e prontuário atualizado.");
-        medicalRecordSyncService.syncMedicalAttendance(saved, medicalAttendance);
+        medicalRecordSyncService.syncMedicalAttendance(saved, medicalAttendance, request);
         triageEventProducer.publishAmbulatoryFlow(
                 "MEDICAL_FINISHED",
                 saved.getId(),
@@ -327,6 +344,14 @@ public class AmbulatoryService {
         }
     }
 
+    public String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value == null ? List.of() : value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Não foi possível serializar o conteúdo", exception);
+        }
+    }
+
     private List<VaccineSnapshot> readVaccines(String value) {
         if (value == null || value.isBlank()) {
             return List.of();
@@ -334,6 +359,18 @@ public class AmbulatoryService {
 
         try {
             return objectMapper.readValue(value, VACCINES_TYPE);
+        } catch (JsonProcessingException exception) {
+            return List.of();
+        }
+    }
+
+    private <T> List<T> readTypedList(String value, TypeReference<List<T>> type) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            return objectMapper.readValue(value, type);
         } catch (JsonProcessingException exception) {
             return List.of();
         }
@@ -392,6 +429,14 @@ public class AmbulatoryService {
                 medicalAttendance.getPlan(),
                 medicalAttendance.getProcedureCode(),
                 readStringList(medicalAttendance.getCidCodesJson()),
+                readTypedList(medicalAttendance.getMedicationsJson(), MEDICATIONS_TYPE),
+                readTypedList(medicalAttendance.getProceduresJson(), PROCEDURES_TYPE),
+                readTypedList(medicalAttendance.getObservationPrescriptionsJson(), OBSERVATION_PRESCRIPTIONS_TYPE),
+                readTypedList(medicalAttendance.getExamsJson(), EXAMS_TYPE),
+                readTypedList(medicalAttendance.getOrientationsJson(), ORIENTATIONS_TYPE),
+                readTypedList(medicalAttendance.getCertificatesJson(), CERTIFICATES_TYPE),
+                readTypedList(medicalAttendance.getDeclarationsJson(), DECLARATIONS_TYPE),
+                readTypedList(medicalAttendance.getRecipesJson(), RECIPES_TYPE),
                 medicalAttendance.getNotifications(),
                 medicalAttendance.isAccidentMoto(),
                 medicalAttendance.isAccidentCarro(),

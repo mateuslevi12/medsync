@@ -170,6 +170,97 @@ export interface AmbulatoryAttendanceResponse {
   updatedAt: string;
 }
 
+export type MedicalConductStatus = "NAO_SALVO" | "SALVO" | "REALIZADO" | "SOLICITADO";
+
+export interface MedicationConduct {
+  id: string;
+  medicationName: string;
+  protocol?: string | null;
+  scheduledAt: string;
+  dosage: string;
+  status: MedicalConductStatus;
+  createdAt: string;
+}
+
+export interface ProcedureConduct {
+  id: string;
+  procedureName: string;
+  protocol?: string | null;
+  scheduledAt: string;
+  observations?: string | null;
+  status: MedicalConductStatus;
+  createdAt: string;
+}
+
+export interface ObservationPrescriptionConduct {
+  id: string;
+  title: string;
+  description: string;
+  observationTime?: string | null;
+  status: MedicalConductStatus;
+  createdAt: string;
+}
+
+export interface ExamConduct {
+  id: string;
+  examName: string;
+  protocol?: string | null;
+  observations?: string | null;
+  status: MedicalConductStatus;
+  createdAt: string;
+}
+
+export interface OrientationConduct {
+  id: string;
+  title: string;
+  text: string;
+  status: MedicalConductStatus;
+  createdAt: string;
+}
+
+export interface CertificateConduct {
+  id: string;
+  issueDate: string;
+  startDate: string;
+  days: number;
+  text: string;
+  includeCidCode: boolean;
+  includeCidDescription: boolean;
+  status: MedicalConductStatus;
+  createdAt: string;
+}
+
+export interface DeclarationConduct {
+  id: string;
+  startDateTime: string;
+  endDateTime: string;
+  text: string;
+  status: MedicalConductStatus;
+  createdAt: string;
+}
+
+export interface RecipeConduct {
+  id: string;
+  fillMode: "PADRAO" | "LIVRE";
+  recipeType: "COMUM" | "ESPECIAL";
+  favoriteName?: string | null;
+  text: string;
+  saveAsFavorite: boolean;
+  status: MedicalConductStatus;
+  createdAt: string;
+}
+
+export interface MedicalConductsState {
+  medications: MedicationConduct[];
+  procedures: ProcedureConduct[];
+  observationPrescriptions: ObservationPrescriptionConduct[];
+  exams: ExamConduct[];
+  orientations: OrientationConduct[];
+  certificates: CertificateConduct[];
+  declarations: DeclarationConduct[];
+  recipes: RecipeConduct[];
+}
+
 export interface MedicalAttendanceResponse {
   id: number;
   attendanceId: number;
@@ -179,8 +270,14 @@ export interface MedicalAttendanceResponse {
   plan: string;
   procedureCode?: string | null;
   cidCodes: string[];
-  exams: string[];
-  prescriptions: string[];
+  medications: MedicationConduct[];
+  procedures: ProcedureConduct[];
+  observationPrescriptions: ObservationPrescriptionConduct[];
+  exams: ExamConduct[];
+  orientations: OrientationConduct[];
+  certificates: CertificateConduct[];
+  declarations: DeclarationConduct[];
+  recipes: RecipeConduct[];
   notifications?: string | null;
   accidentMoto: boolean;
   accidentCarro: boolean;

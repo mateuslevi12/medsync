@@ -120,6 +120,17 @@ function buildDemoMedical(patientId: string): MedicalAttendanceResponse[] {
     return [];
   }
 
+  const conducts = medical.conducts || {
+    medications: [],
+    procedures: [],
+    observationPrescriptions: [],
+    exams: [],
+    orientations: [],
+    certificates: [],
+    declarations: [],
+    recipes: [],
+  };
+
   const currentMedical = {
     id: Number(patientId),
     attendanceId: Number(patientId),
@@ -129,8 +140,14 @@ function buildDemoMedical(patientId: string): MedicalAttendanceResponse[] {
     plan: medical.plan,
     procedureCode: medical.procedureCode,
     cidCodes: medical.selectedCid,
-    exams: ["Hemograma completo", "Glicemia de jejum"],
-    prescriptions: ["Paracetamol 750mg — 1 cp VO 8/8h por 3 dias", "Losartana 50mg — 1 cp VO 1x/dia"],
+    medications: conducts.medications,
+    procedures: conducts.procedures,
+    observationPrescriptions: conducts.observationPrescriptions,
+    exams: conducts.exams,
+    orientations: conducts.orientations,
+    certificates: conducts.certificates,
+    declarations: conducts.declarations,
+    recipes: conducts.recipes,
     notifications: medical.notificationsLabel,
     accidentMoto: medical.accidentReasons.includes("Moto"),
     accidentCarro: medical.accidentReasons.includes("Carro"),
@@ -157,8 +174,31 @@ function buildDemoMedical(patientId: string): MedicalAttendanceResponse[] {
       plan: "Manter hábitos saudáveis. Retorno em 6 meses.",
       procedureCode: "0301060096",
       cidCodes: ["Z00.0"],
-      exams: ["Perfil lipídico", "Hemograma de rotina"],
-      prescriptions: [],
+      medications: [],
+      procedures: [],
+      observationPrescriptions: [],
+      exams: [
+        {
+          id: "exam-legacy-1",
+          examName: "Perfil lipídico",
+          protocol: "",
+          observations: "",
+          status: "SOLICITADO" as const,
+          createdAt: "2026-05-08T19:46:10.000Z",
+        },
+        {
+          id: "exam-legacy-2",
+          examName: "Hemograma de rotina",
+          protocol: "",
+          observations: "",
+          status: "SOLICITADO" as const,
+          createdAt: "2026-05-08T19:46:40.000Z",
+        },
+      ],
+      orientations: [],
+      certificates: [],
+      declarations: [],
+      recipes: [],
       createdAt: "2026-05-08T19:45:49.000Z",
       completedAt: "2026-05-08T20:00:49.000Z",
     },

@@ -10,6 +10,7 @@ import {
   sanitizeText,
 } from "@/lib/input-sanitizers";
 import { parseBrazilianDateToIso } from "@/lib/input-validators";
+import type { MedicalConductsState } from "@/lib/types";
 
 export function mapPatientFormToPayload(form: {
   fullName: string;
@@ -125,6 +126,81 @@ export function mapMedicalFormToPayload(form: {
     accidentBicicleta: form.accidentBicicleta,
     accidentPedestre: form.accidentPedestre,
     accidentOutros: form.accidentOutros,
+  };
+}
+
+export function mapMedicalConductsToPayload(conducts: MedicalConductsState) {
+  return {
+    medications: conducts.medications.map((item) => ({
+      id: sanitizeText(item.id, 80),
+      medicationName: sanitizeText(item.medicationName, 120),
+      protocol: sanitizeText(item.protocol || "", 120),
+      scheduledAt: sanitizeText(item.scheduledAt, 40),
+      dosage: sanitizeText(item.dosage, 500),
+      status: item.status,
+      createdAt: sanitizeText(item.createdAt, 40),
+    })),
+    procedures: conducts.procedures.map((item) => ({
+      id: sanitizeText(item.id, 80),
+      procedureName: sanitizeText(item.procedureName, 120),
+      protocol: sanitizeText(item.protocol || "", 120),
+      scheduledAt: sanitizeText(item.scheduledAt, 40),
+      observations: sanitizeText(item.observations || "", 500),
+      status: item.status,
+      createdAt: sanitizeText(item.createdAt, 40),
+    })),
+    observationPrescriptions: conducts.observationPrescriptions.map((item) => ({
+      id: sanitizeText(item.id, 80),
+      title: sanitizeText(item.title, 120),
+      description: sanitizeText(item.description, 1000),
+      observationTime: sanitizeText(item.observationTime || "", 120),
+      status: item.status,
+      createdAt: sanitizeText(item.createdAt, 40),
+    })),
+    exams: conducts.exams.map((item) => ({
+      id: sanitizeText(item.id, 80),
+      examName: sanitizeText(item.examName, 120),
+      protocol: sanitizeText(item.protocol || "", 120),
+      observations: sanitizeText(item.observations || "", 500),
+      status: item.status,
+      createdAt: sanitizeText(item.createdAt, 40),
+    })),
+    orientations: conducts.orientations.map((item) => ({
+      id: sanitizeText(item.id, 80),
+      title: sanitizeText(item.title, 120),
+      text: sanitizeText(item.text, 2000),
+      status: item.status,
+      createdAt: sanitizeText(item.createdAt, 40),
+    })),
+    certificates: conducts.certificates.map((item) => ({
+      id: sanitizeText(item.id, 80),
+      issueDate: sanitizeText(item.issueDate, 20),
+      startDate: sanitizeText(item.startDate, 20),
+      days: item.days,
+      text: sanitizeText(item.text, 2000),
+      includeCidCode: item.includeCidCode,
+      includeCidDescription: item.includeCidDescription,
+      status: item.status,
+      createdAt: sanitizeText(item.createdAt, 40),
+    })),
+    declarations: conducts.declarations.map((item) => ({
+      id: sanitizeText(item.id, 80),
+      startDateTime: sanitizeText(item.startDateTime, 40),
+      endDateTime: sanitizeText(item.endDateTime, 40),
+      text: sanitizeText(item.text, 2000),
+      status: item.status,
+      createdAt: sanitizeText(item.createdAt, 40),
+    })),
+    recipes: conducts.recipes.map((item) => ({
+      id: sanitizeText(item.id, 80),
+      fillMode: item.fillMode,
+      recipeType: item.recipeType,
+      favoriteName: sanitizeText(item.favoriteName || "", 120),
+      text: sanitizeText(item.text, 3000),
+      saveAsFavorite: item.saveAsFavorite,
+      status: item.status,
+      createdAt: sanitizeText(item.createdAt, 40),
+    })),
   };
 }
 

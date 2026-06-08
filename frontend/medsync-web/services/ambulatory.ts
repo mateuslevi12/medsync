@@ -1,14 +1,17 @@
 import { apiRequest } from "@/lib/api";
 import {
   getDemoQueue,
+  getMedicalByPatientId as getDemoMedical,
   getPatientById as getDemoPatient,
   getQueueWithPatients,
   getTriageByPatientId,
+  upsertDemoMedical,
   upsertDemoTriage,
   upsertDemoQueueItem,
 } from "@/lib/medsync-demo";
 import type {
   AmbulatoryAttendanceResponse,
+  MedicalConductsState,
   AmbulatoryPriority,
   AmbulatoryStatus,
   RiskClassification,
@@ -56,6 +59,14 @@ export type FinishMedicalInput = {
   plan: string;
   procedureCode?: string;
   cidCodes: string[];
+  medications: MedicalConductsState["medications"];
+  procedures: MedicalConductsState["procedures"];
+  observationPrescriptions: MedicalConductsState["observationPrescriptions"];
+  exams: MedicalConductsState["exams"];
+  orientations: MedicalConductsState["orientations"];
+  certificates: MedicalConductsState["certificates"];
+  declarations: MedicalConductsState["declarations"];
+  recipes: MedicalConductsState["recipes"];
   notifications?: string;
   accidentMoto?: boolean;
   accidentCarro?: boolean;
@@ -285,8 +296,39 @@ export async function finishMedical(
   options: ServiceOptions = {}
 ) {
   if (options.demo) {
+    const patientId = String(attendanceId);
+    const currentMedical = getDemoMedical(patientId);
+
+    if (currentMedical) {
+      upsertDemoMedical(patientId, {
+        ...currentMedical,
+        evaluation: input.assessment,
+        plan: input.plan,
+        procedureCode: input.procedureCode || "",
+        selectedCid: input.cidCodes,
+        notificationsLabel: input.notifications || "Sem notificações adicionais.",
+        accidentReasons: [
+          input.accidentMoto ? "Moto" : null,
+          input.accidentCarro ? "Carro" : null,
+          input.accidentBicicleta ? "Bicicleta" : null,
+          input.accidentPedestre ? "Pedestre" : null,
+          input.accidentOutros ? "Outros" : null,
+        ].filter(Boolean) as string[],
+        conducts: {
+          medications: input.medications,
+          procedures: input.procedures,
+          observationPrescriptions: input.observationPrescriptions,
+          exams: input.exams,
+          orientations: input.orientations,
+          certificates: input.certificates,
+          declarations: input.declarations,
+          recipes: input.recipes,
+        },
+      });
+    }
+
     return {
-      ...mapDemoRow(String(attendanceId)),
+      ...mapDemoRow(patientId),
       status: "FINALIZADO" as AmbulatoryStatus,
       queueName: "FINALIZADO",
     };

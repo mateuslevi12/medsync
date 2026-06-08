@@ -3,6 +3,8 @@ package com.medsync.triage.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medsync.triage.dto.CompleteTriageRequest;
+import com.medsync.triage.dto.FinishMedicalAttendanceRequest;
+import com.medsync.triage.dto.MedicalConductDtos.*;
 import com.medsync.triage.dto.VaccineSnapshot;
 import com.medsync.triage.model.AmbulatoryAttendance;
 import com.medsync.triage.model.MedicalAttendance;
@@ -97,16 +99,25 @@ public class MedicalRecordSyncService {
         );
     }
 
-    public void syncMedicalAttendance(AmbulatoryAttendance attendance, MedicalAttendance medicalAttendance) {
+    public void syncMedicalAttendance(
+            AmbulatoryAttendance attendance,
+            MedicalAttendance medicalAttendance,
+            FinishMedicalAttendanceRequest request
+    ) {
         CreateMedicalAttendancePayload payload = new CreateMedicalAttendancePayload(
                 attendance.getId(),
                 medicalAttendance.getAssessment(),
                 medicalAttendance.getPlan(),
                 medicalAttendance.getProcedureCode(),
                 ambulatoryServiceStringList(medicalAttendance.getCidCodesJson()),
-                List.of(),
-                List.of(),
-                List.of(),
+                defaultMedicalConducts(request.medications()),
+                defaultProcedureConducts(request.procedures()),
+                defaultObservationConducts(request.observationPrescriptions()),
+                defaultExamConducts(request.exams()),
+                defaultOrientationConducts(request.orientations()),
+                defaultCertificateConducts(request.certificates()),
+                defaultDeclarationConducts(request.declarations()),
+                defaultRecipeConducts(request.recipes()),
                 medicalAttendance.getNotifications(),
                 medicalAttendance.isAccidentMoto(),
                 medicalAttendance.isAccidentCarro(),
@@ -219,6 +230,38 @@ public class MedicalRecordSyncService {
         }
     }
 
+    private List<MedicationConductDto> defaultMedicalConducts(List<MedicationConductDto> items) {
+        return items == null ? List.of() : items;
+    }
+
+    private List<ProcedureConductDto> defaultProcedureConducts(List<ProcedureConductDto> items) {
+        return items == null ? List.of() : items;
+    }
+
+    private List<ObservationPrescriptionConductDto> defaultObservationConducts(List<ObservationPrescriptionConductDto> items) {
+        return items == null ? List.of() : items;
+    }
+
+    private List<ExamConductDto> defaultExamConducts(List<ExamConductDto> items) {
+        return items == null ? List.of() : items;
+    }
+
+    private List<OrientationConductDto> defaultOrientationConducts(List<OrientationConductDto> items) {
+        return items == null ? List.of() : items;
+    }
+
+    private List<CertificateConductDto> defaultCertificateConducts(List<CertificateConductDto> items) {
+        return items == null ? List.of() : items;
+    }
+
+    private List<DeclarationConductDto> defaultDeclarationConducts(List<DeclarationConductDto> items) {
+        return items == null ? List.of() : items;
+    }
+
+    private List<RecipeConductDto> defaultRecipeConducts(List<RecipeConductDto> items) {
+        return items == null ? List.of() : items;
+    }
+
     private List<String> ambulatoryServiceStringList(String json) {
         if (json == null || json.isBlank()) {
             return List.of();
@@ -278,9 +321,14 @@ public class MedicalRecordSyncService {
             String plan,
             String procedureCode,
             List<String> cidCodes,
-            List<String> exams,
-            List<String> medications,
-            List<String> prescriptions,
+            List<MedicationConductDto> medications,
+            List<ProcedureConductDto> procedures,
+            List<ObservationPrescriptionConductDto> observationPrescriptions,
+            List<ExamConductDto> exams,
+            List<OrientationConductDto> orientations,
+            List<CertificateConductDto> certificates,
+            List<DeclarationConductDto> declarations,
+            List<RecipeConductDto> recipes,
             String notifications,
             Boolean accidentMoto,
             Boolean accidentCarro,
