@@ -13,6 +13,10 @@ public record UpdateUserRequest(
         @Pattern(regexp = "^[\\p{L}](?:[\\p{L}\\s'’-]*[\\p{L}])?$", message = "nome contém caracteres inválidos")
         String name,
 
+        @NotBlank(message = "CPF é obrigatório")
+        @Pattern(regexp = "^\\d{11}$", message = "CPF deve conter 11 dígitos")
+        String cpf,
+
         @NotBlank(message = "e-mail é obrigatório")
         @Email(message = "e-mail deve ser válido")
         @Size(max = 120, message = "e-mail deve ter no máximo 120 caracteres")
@@ -20,6 +24,9 @@ public record UpdateUserRequest(
 
         @Size(min = 6, max = 72, message = "senha deve ter entre 6 e 72 caracteres")
         String password,
+
+        @NotNull(message = "status é obrigatório")
+        Boolean active,
 
         @NotNull(message = "perfil é obrigatório")
         Role role

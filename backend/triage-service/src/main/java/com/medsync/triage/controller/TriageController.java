@@ -22,44 +22,44 @@ public class TriageController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public TriageResponse create(@Valid @RequestBody CreateTriageRequest request) {
         return triageService.create(request);
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public List<TriageResponse> findAll() {
         return triageService.findAll();
     }
 
     @GetMapping("/waiting")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public List<TriageResponse> findWaiting() {
         return triageService.findWaiting();
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public TriageResponse findById(@PathVariable Long id) {
         return triageService.findById(id);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public TriageResponse update(@PathVariable Long id, @Valid @RequestBody UpdateTriageRequest request) {
         return triageService.update(id, request);
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public TriageResponse updateStatus(@PathVariable Long id, @Valid @RequestBody UpdateTriageStatusRequest request) {
         return triageService.updateStatus(id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public void delete(@PathVariable Long id) {
         triageService.delete(id);
     }

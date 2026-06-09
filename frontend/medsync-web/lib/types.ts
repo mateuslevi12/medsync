@@ -1,4 +1,4 @@
-export type Role = "ADMIN" | "HEALTH_PROFESSIONAL" | "RECEPTIONIST";
+export type Role = "ADMIN" | "RECEPTIONIST" | "NURSE" | "DOCTOR" | "HEALTH_PROFESSIONAL";
 export type Gender = "MALE" | "FEMALE" | "OTHER";
 export type TriagePriority = "RED" | "ORANGE" | "YELLOW" | "GREEN" | "BLUE";
 export type TriageStatus = "WAITING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
@@ -40,6 +40,7 @@ export type TimelineEventType =
 export interface AuthUser {
   id: number;
   name: string;
+  cpf: string;
   email: string;
   role: Role;
 }
@@ -47,8 +48,11 @@ export interface AuthUser {
 export interface UserResponse {
   id: number;
   name: string;
+  cpf: string;
   email: string;
   role: Role;
+  active: boolean;
+  lastLoginAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

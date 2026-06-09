@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { mapAllergyFormToPayload, mapTriageFormToPayload } from "@/lib/form-mappers";
 import { formatBloodPressure, formatDecimal, formatInteger } from "@/lib/input-masks";
+import { getCurrentUser, getPermissionMessage, hasPermission } from "@/lib/rbac";
 import { sanitizeBloodPressure, sanitizeInteger, sanitizeText } from "@/lib/input-sanitizers";
 import {
   validateBloodPressure,
@@ -58,6 +59,8 @@ function normalizeVaccineStatus(status?: string | null): (typeof vaccineStatuses
 
 export function TriageWorkspace({ attendanceId }: TriageWorkspaceProps) {
   const router = useRouter();
+  const currentRole = getCurrentUser()?.role;
+  const canEditTriage = hasPermission("triage.edit", currentRole);
   const [forceDemo, setForceDemo] = useState(isDemoModeEnabled());
   const [attendance, setAttendance] = useState<AmbulatoryAttendanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,6 +214,11 @@ export function TriageWorkspace({ attendanceId }: TriageWorkspaceProps) {
   }
 
   async function handleSubmit() {
+    if (!canEditTriage) {
+      setError(getPermissionMessage("triage.edit"));
+      return;
+    }
+
     if (!attendance || !form.risk) {
       setError("Selecione uma classificação de risco para concluir o acolhimento.");
       return;
@@ -363,6 +371,12 @@ export function TriageWorkspace({ attendanceId }: TriageWorkspaceProps) {
           </div>
         ) : null}
 
+        {!loading && attendance && !canEditTriage ? (
+          <div className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
+            {getPermissionMessage("triage.edit")}
+          </div>
+        ) : null}
+
         {loading || !attendance ? (
           <div className="surface-card p-5 text-sm text-muted-foreground">Carregando dados do acolhimento...</div>
         ) : (
@@ -378,6 +392,7 @@ export function TriageWorkspace({ attendanceId }: TriageWorkspaceProps) {
             />
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_520px]">
+              <fieldset disabled={!canEditTriage} className="contents">
               <div className="surface-card overflow-hidden">
                 <div className="grid grid-cols-[1.1fr_minmax(0,1fr)] border-b border-border bg-[#F8FAFC] px-5 py-4">
                   <p className="text-[14px] font-semibold text-foreground">Itens</p>
@@ -737,12 +752,17 @@ export function TriageWorkspace({ attendanceId }: TriageWorkspaceProps) {
                     <Button variant="outline" disabled={saving}>
                       Salvar
                     </Button>
-                    <Button onClick={() => void handleSubmit()} disabled={saving}>
+                    <Button
+                      onClick={() => void handleSubmit()}
+                      disabled={saving || !canEditTriage}
+                      title={!canEditTriage ? getPermissionMessage("triage.edit") : undefined}
+                    >
                       {saving ? "Encaminhando..." : "Encaminhar para Atendimento Médico"}
                     </Button>
                   </div>
                 </div>
               </div>
+              </fieldset>
             </div>
           </>
         )}

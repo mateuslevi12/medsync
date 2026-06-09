@@ -12,7 +12,8 @@ import java.time.Instant;
 @AllArgsConstructor
 @Entity
 @Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_users_email", columnNames = "email")
+        @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
+        @UniqueConstraint(name = "uk_users_cpf", columnNames = "cpf")
 })
 public class User {
 
@@ -26,12 +27,25 @@ public class User {
     @Column(nullable = false, length = 180)
     private String email;
 
+    @Column(length = 11)
+    private String cpf;
+
     @Column(nullable = false, length = 255)
     private String password;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
     private Role role;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
+
+    @Column
+    private Instant lastLoginAt;
+
+    @Column
+    private Instant deletedAt;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

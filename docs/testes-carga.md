@@ -2,27 +2,20 @@
 
 ## Objetivo dos testes de carga
 
-Esta etapa adiciona uma suite reproduzivel de testes com k6 para demonstrar que o MedSync foi avaliado nos fluxos distribuidos mais relevantes da entrega:
+Esta suite cobre os fluxos distribuidos mais relevantes do sistema atual:
 
-- autenticacao
-- pacientes
-- triagem
+- autenticacao por CPF ou e-mail
+- consultas de sessao autenticada
+- administracao de usuarios
+- pacientes e busca por CPF
+- triagem e fila ambulatorial
 - notificacoes
-- fluxo completo com efeito indireto em Kafka
+- prontuario, timeline e summary
+- fluxo completo com reflexo em Kafka
 
-O foco e academico: evidenciar comportamento, latencia, erros e integracao distribuida, e nao produzir um benchmark definitivo de producao.
+O foco continua academico: demonstrar comportamento, latencia, falhas e integracao entre servicos.
 
-## Por que k6 foi usado
-
-O k6 foi escolhido porque:
-
-- permite scripts versionados em JavaScript
-- facilita parametrizacao por ambiente
-- funciona localmente e em pipeline
-- exporta sumarios JSON para evidencias
-- e simples de executar via Docker, sem depender de instalacao local
-
-## Estrutura criada
+## Estrutura atual
 
 ```text
 tests/
@@ -33,18 +26,19 @@ tests/
     patients.js
     triage.js
     notifications.js
+    users.js
+    dashboard.js
     full-flow.js
     results/
-      .gitkeep
+      full-flow-summary.json
 ```
 
-## Fluxos testados
+## Fluxos cobertos
 
 `login.js`:
 
 - `POST /api/auth/login`
-- valida `status 200`
-- valida token na resposta
+- `GET /api/auth/me`
 
 `patients.js`:
 
@@ -52,6 +46,8 @@ tests/
 - `GET /api/patients`
 - `POST /api/patients`
 - `GET /api/patients/{id}`
+- `GET /api/patients/cpf/{cpf}`
+- `GET /api/patients?cpf=...`
 - `PUT /api/patients/{id}`
 
 `triage.js`:
@@ -62,74 +58,125 @@ tests/
 - `GET /api/triage`
 - `GET /api/triage/waiting`
 
-Observacao:
-
-- a publicacao Kafka nao e lida diretamente pelo k6
-- a criacao da triagem aciona o `triage-service`, que publica o evento esperado
-
 `notifications.js`:
 
 - login
 - `GET /api/notifications`
 - `GET /api/notifications/unread`
-- marca uma notificacao como lida
-- se necessario, cria uma triagem para forcar um evento e gerar notificacao
+- cria evento se necessario
+- marca notificacao como lida
+
+`users.js`:
+
+- login administrativo
+- `GET /api/users`
+- `POST /api/users`
+- `GET /api/users/{id}`
+- login do usuario criado via CPF
+- `GET /api/auth/me`
+- `PUT /api/users/{id}`
+- novo login com CPF atualizado
+- `PATCH /api/users/{id}/status`
+- `DELETE /api/users/{id}`
+
+`dashboard.js`:
+
+- login
+- `GET /api/auth/me`
+- `GET /api/users`
+- `GET /api/patients`
+- `GET /api/patients?cpf=...`
+- `GET /api/patients/cpf/{cpf}`
+- `GET /api/ambulatory/queue`
+- `GET /api/medical-records/summary`
+- `GET /api/notifications`
+- `GET /api/notifications/unread`
 
 `full-flow.js`:
 
 - login
+- `GET /api/auth/me`
 - cria paciente
-- cria triagem para o paciente
-- espera o processamento assincrono
-- lista notificacoes
-- encontra a notificacao relacionada ao `triageId`
-- marca a notificacao como lida
+- busca paciente por id e CPF
+- cria alergias e vacinas
+- executa fila ambulatorial completa
+- consulta prontuario, timeline e summary
+- valida notificacao final do fluxo
 
-Esse e o script principal para apresentacao.
-
-## Como configurar BASE_URL
-
-Variavel:
-
-- `BASE_URL`
-
-Fallback:
-
-- `http://localhost:8080`
-
-Exemplos:
-
-Local:
-
-```bash
-BASE_URL=http://localhost:8080
-```
-
-Staging:
-
-```bash
-BASE_URL=https://api.staging.medsync.local
-```
-
-Production ou demo:
-
-```bash
-BASE_URL=https://api.medsync.local
-```
-
-## Como configurar credenciais
+## Credenciais e parametrizacao
 
 Variaveis:
 
+- `BASE_URL`
+- `MEDSYNC_LOGIN`
+- `MEDSYNC_CPF`
 - `MEDSYNC_EMAIL`
 - `MEDSYNC_PASSWORD`
+- `LOAD_PROFILE`
 
 Fallbacks academicos:
 
+- `MEDSYNC_LOGIN=00000000000`
+- `MEDSYNC_CPF=00000000000`
 - `MEDSYNC_EMAIL=admin@medsync.com`
 - `MEDSYNC_PASSWORD=admin123`
 
-Nao use credenciais reais no repositorio.
+`MEDSYNC_LOGIN` e a opcao recomendada porque cobre o contrato novo do `auth-service`.
+
+## Como rodar localmente
+
+Quando o `k6` roda em Docker e a API esta no host local, use `host.docker.internal`:
+
+```bash
+BASE_URL=http://host.docker.internal:8080
+```
+
+Login:
+
+```bash
+BASE_URL=http://host.docker.internal:8080 docker run --rm \
+  -e BASE_URL \
+  -e MEDSYNC_LOGIN \
+  -e MEDSYNC_PASSWORD \
+  -e LOAD_PROFILE=smoke \
+  -v "$PWD:/work" -w /work \
+  grafana/k6 run tests/load/login.js
+```
+
+Usuarios:
+
+```bash
+BASE_URL=http://host.docker.internal:8080 docker run --rm \
+  -e BASE_URL \
+  -e MEDSYNC_LOGIN \
+  -e MEDSYNC_PASSWORD \
+  -e LOAD_PROFILE=smoke \
+  -v "$PWD:/work" -w /work \
+  grafana/k6 run tests/load/users.js
+```
+
+Dashboard:
+
+```bash
+BASE_URL=http://host.docker.internal:8080 docker run --rm \
+  -e BASE_URL \
+  -e MEDSYNC_LOGIN \
+  -e MEDSYNC_PASSWORD \
+  -e LOAD_PROFILE=smoke \
+  -v "$PWD:/work" -w /work \
+  grafana/k6 run tests/load/dashboard.js
+```
+
+Fluxo completo:
+
+```bash
+BASE_URL=http://host.docker.internal:8080 docker run --rm \
+  -e BASE_URL \
+  -e MEDSYNC_LOGIN \
+  -e MEDSYNC_PASSWORD \
+  -v "$PWD:/work" -w /work \
+  grafana/k6 run tests/load/full-flow.js
+```
 
 ## Cenarios de carga
 
@@ -148,167 +195,33 @@ Scripts menores:
 
 Thresholds configurados:
 
-- `http_req_failed < 5%`
+- `http_req_failed = 0`
 - `http_req_duration p(95) < 2000ms`
-- `checks > 95%`
-
-Observacao:
-
-- se o ambiente local estiver mais limitado, esses thresholds podem ser ajustados para a apresentacao
-- `LOAD_PROFILE=smoke` força o `full-flow` a usar o mesmo perfil curto de `30s`
-
-## Como rodar localmente
-
-Login:
-
-```bash
-BASE_URL=http://localhost:8080 docker run --rm \
-  -e BASE_URL \
-  -e MEDSYNC_EMAIL \
-  -e MEDSYNC_PASSWORD \
-  -e LOAD_PROFILE=smoke \
-  -v "$PWD:/work" -w /work \
-  grafana/k6 run tests/load/login.js
-```
-
-Fluxo completo:
-
-```bash
-BASE_URL=http://localhost:8080 docker run --rm \
-  -e BASE_URL \
-  -e MEDSYNC_EMAIL \
-  -e MEDSYNC_PASSWORD \
-  -v "$PWD:/work" -w /work \
-  grafana/k6 run tests/load/full-flow.js
-```
-
-## Como rodar contra staging
-
-```bash
-BASE_URL=https://api.staging.medsync.local docker run --rm \
-  -e BASE_URL \
-  -e MEDSYNC_EMAIL \
-  -e MEDSYNC_PASSWORD \
-  -e LOAD_PROFILE=smoke \
-  -v "$PWD:/work" -w /work \
-  grafana/k6 run tests/load/full-flow.js
-```
-
-## Como rodar contra production ou demo
-
-```bash
-BASE_URL=https://api.medsync.local docker run --rm \
-  -e BASE_URL \
-  -e MEDSYNC_EMAIL \
-  -e MEDSYNC_PASSWORD \
-  -e LOAD_PROFILE=smoke \
-  -v "$PWD:/work" -w /work \
-  grafana/k6 run tests/load/full-flow.js
-```
-
-Em ambiente de demonstracao, prefira o perfil `smoke`.
-
-## Como exportar resultado JSON
-
-```bash
-BASE_URL=http://localhost:8080 docker run --rm \
-  -e BASE_URL \
-  -e MEDSYNC_EMAIL \
-  -e MEDSYNC_PASSWORD \
-  -v "$PWD:/work" -w /work \
-  grafana/k6 run \
-  --summary-export tests/load/results/full-flow-summary.json \
-  tests/load/full-flow.js
-```
-
-## Como interpretar as metricas
-
-`http_req_duration`:
-
-- tempo de resposta das requisicoes HTTP
-- o `p95` indica o tempo abaixo do qual 95% das requisicoes terminaram
-
-`http_req_failed`:
-
-- taxa de falhas HTTP ou de rede
-
-`checks`:
-
-- taxa de validacoes funcionais aprovadas dentro do script
-
-`p95`:
-
-- bom indicador para apresentar latencia sem ficar preso a outliers isolados
-
-## Criterios de aceitacao academicos
-
-Esta etapa atende ao objetivo se:
-
-- os scripts executarem com `BASE_URL` configuravel
-- o login responder com token
-- o fluxo de pacientes responder sem erro sistemico
-- a criacao de triagem responder e refletir o fluxo distribuido
-- as notificacoes puderem ser lidas pelo gateway
-- o `full-flow` demonstrar a sequencia login -> paciente -> triagem -> notificacao
-
-## Resultados validados
-
-`login.js` em smoke:
-
-- 422 requisicoes
-- 0 falhas
-- `p95 = 73.35ms`
 - `checks = 100%`
 
-`full-flow.js` em smoke:
+`LOAD_PROFILE=smoke` força qualquer script a usar o perfil curto de `30s`.
 
-- 98 requisicoes
-- 14 iteracoes completas
-- 0 falhas
-- `p95 = 75.01ms`
+## Resultado validado recente
+
+`full-flow.js` em smoke, apos os ajustes de payload:
+
 - `checks = 100%`
-- media por iteracao de aproximadamente `2.15s`
-
-Problema real encontrado:
-
-- os testes revelaram um `500` em `GET /api/patients/{id}`
-- a causa foi serializacao de `LocalDate` no cache Redis do `patients-service`
-- a correcao foi aplicada no `CacheConfig` com a mesma estrategia de serializacao do `triage-service`
+- `http_req_failed = 0%`
+- `p95 = 20.74ms`
+- `14 iteracoes completas`
 
 ## Monitoramento durante os testes
 
-Durante a carga, use o Grafana e o Prometheus para observar:
+Durante a carga, observe no Prometheus e Grafana:
 
-- aumento de requisicoes HTTP por servico
 - latencia e `p95`
 - erros `4xx` e `5xx`
-- uso de memoria JVM
-- uso de CPU do processo
-- disponibilidade dos seis servicos Spring
+- throughput HTTP
+- uso de CPU e memoria JVM
+- disponibilidade dos servicos
 
-## Workflow opcional no GitHub Actions
-
-Foi criado um workflow manual:
-
-- `.github/workflows/load-tests.yml`
-
-Ele:
-
-- e executado apenas via `workflow_dispatch`
-- recebe `base_url` e `script`
-- roda k6 em perfil `smoke`
-- exporta sumario JSON como artifact
-
-Secrets opcionais para esse workflow:
-
-- `MEDSYNC_LOADTEST_EMAIL`
-- `MEDSYNC_LOADTEST_PASSWORD`
-
-Se nao forem configurados, os fallbacks academicos do script continuam valendo.
-
-## Rollup e limitacoes
+## Limitacoes
 
 - os testes nao substituem observabilidade real
-- Kafka e validado indiretamente via criacao de triagem e aparicao da notificacao
-- resultados dependem da maquina local, do cluster e do estado do ambiente
-- o workflow do GitHub foi mantido manual para evitar carga involuntaria em ambientes compartilhados
+- Kafka continua validado indiretamente via efeitos observaveis no fluxo
+- resultados dependem do estado do ambiente local ou do cluster

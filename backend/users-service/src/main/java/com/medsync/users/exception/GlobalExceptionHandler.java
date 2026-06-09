@@ -66,9 +66,11 @@ public class GlobalExceptionHandler {
     private String traduzirCampo(String campo) {
         return switch (campo) {
             case "name" -> "nome";
+            case "cpf" -> "CPF";
             case "email" -> "e-mail";
             case "password" -> "senha";
             case "role" -> "perfil";
+            case "active" -> "status";
             default -> campo;
         };
     }

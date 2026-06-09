@@ -19,19 +19,30 @@ public class DataSeeder implements CommandLineRunner {
     @Value("${app.seed.admin-email:admin@medsync.com}")
     private String adminEmail;
 
+    @Value("${app.seed.admin-cpf:00000000000}")
+    private String adminCpf;
+
     @Value("${app.seed.admin-password:admin123}")
     private String adminPassword;
 
     @Override
     public void run(String... args) {
-        if (userRepository.existsByEmailIgnoreCase(adminEmail)) {
+        var existingAdmin = userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(adminEmail.toLowerCase());
+        if (existingAdmin.isPresent()) {
+            User admin = existingAdmin.get();
+            if (admin.getCpf() == null || admin.getCpf().isBlank()) {
+                admin.setCpf(adminCpf);
+                userRepository.save(admin);
+            }
             return;
         }
 
         User admin = User.builder()
                 .name("Admin MedSync")
+                .cpf(adminCpf)
                 .email(adminEmail.toLowerCase())
                 .password(passwordEncoder.encode(adminPassword))
+                .active(true)
                 .role(Role.ADMIN)
                 .build();
 

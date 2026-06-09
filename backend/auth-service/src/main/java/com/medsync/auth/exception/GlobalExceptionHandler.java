@@ -53,6 +53,7 @@ public class GlobalExceptionHandler {
 
     private String traduzirCampo(String campo) {
         return switch (campo) {
+            case "login" -> "CPF";
             case "email" -> "e-mail";
             case "password" -> "senha";
             default -> campo;

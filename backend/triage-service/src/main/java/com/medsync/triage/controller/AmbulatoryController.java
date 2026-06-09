@@ -21,32 +21,32 @@ public class AmbulatoryController {
     private final AmbulatoryService ambulatoryService;
 
     @GetMapping("/queue")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public List<AmbulatoryAttendanceResponse> findQueue() {
         return ambulatoryService.findQueue();
     }
 
     @PostMapping("/queue")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
     public AmbulatoryAttendanceResponse create(@Valid @RequestBody CreateAmbulatoryAttendanceRequest request) {
         return ambulatoryService.createAttendance(request);
     }
 
     @GetMapping("/queue/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public AmbulatoryAttendanceResponse findById(@PathVariable Long id) {
         return ambulatoryService.findById(id);
     }
 
     @PatchMapping("/queue/{id}/call-triage")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public AmbulatoryAttendanceResponse callTriage(@PathVariable Long id) {
         return ambulatoryService.callTriage(id);
     }
 
     @PatchMapping("/queue/{id}/complete-triage")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public AmbulatoryAttendanceResponse completeTriage(
             @PathVariable Long id,
             @Valid @RequestBody CompleteTriageRequest request
@@ -55,13 +55,13 @@ public class AmbulatoryController {
     }
 
     @PatchMapping("/queue/{id}/call-medical")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','HEALTH_PROFESSIONAL')")
     public AmbulatoryAttendanceResponse callMedical(@PathVariable Long id) {
         return ambulatoryService.callMedical(id);
     }
 
     @PatchMapping("/queue/{id}/finish-medical")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','HEALTH_PROFESSIONAL')")
     public AmbulatoryAttendanceResponse finishMedical(
             @PathVariable Long id,
             @Valid @RequestBody FinishMedicalAttendanceRequest request

@@ -51,4 +51,48 @@ public class UsersServiceClient {
             throw new UnauthorizedException("Não foi possível validar as credenciais do usuário");
         }
     }
+
+    public InternalUserResponse findByCpf(String cpf) {
+        String url = UriComponentsBuilder
+                .fromHttpUrl(usersServiceUrl)
+                .path("/api/users/internal/by-cpf")
+                .queryParam("cpf", cpf)
+                .toUriString();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Internal-Token", internalToken);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<InternalUserResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    InternalUserResponse.class
+            );
+            return response.getBody();
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new NotFoundException("Usuário não encontrado");
+        } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden ex) {
+            throw new UnauthorizedException("Não foi possível validar as credenciais do usuário");
+        }
+    }
+
+    public void registerSuccessfulLogin(String email) {
+        String url = UriComponentsBuilder
+                .fromHttpUrl(usersServiceUrl)
+                .path("/api/users/internal/by-email/last-login")
+                .queryParam("email", email)
+                .toUriString();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Internal-Token", internalToken);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        try {
+            restTemplate.exchange(url, HttpMethod.POST, entity, Void.class);
+        } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden ex) {
+            throw new UnauthorizedException("Não foi possível registrar o último acesso do usuário");
+        }
+    }
 }

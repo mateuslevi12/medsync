@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { apiRequest, parseApiError } from "@/lib/api";
 import { formatCpf } from "@/lib/input-masks";
-import { normalizeCpf, sanitizeCpf } from "@/lib/input-sanitizers";
+import { sanitizeCpf } from "@/lib/input-sanitizers";
 import { validateCpf, validateRequiredText } from "@/lib/input-validators";
 import { getToken, persistSession } from "@/lib/session";
 import type { AuthUser } from "@/lib/types";
@@ -28,7 +28,6 @@ interface LoginResponse {
 }
 
 const DEMO_CPF = "00000000000";
-const DEMO_EMAIL = "admin@medsync.com";
 const DEMO_PASSWORD = "admin123";
 
 const benefitCards = [
@@ -42,16 +41,6 @@ const stats = [
   { value: "+200", label: "ESTABELECIMENTOS" },
   { value: "24/7", label: "SUPORTE" }
 ] as const;
-
-function resolveLoginEmail(cpf: string) {
-  const normalizedCpf = normalizeCpf(cpf);
-
-  if (normalizedCpf === DEMO_CPF) {
-    return DEMO_EMAIL;
-  }
-
-  return "";
-}
 
 function normalizeAuthError(rawError: unknown) {
   const parsed = parseApiError(rawError);
@@ -82,20 +71,18 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const formattedCpf = useMemo(() => formatCpf(cpf), [cpf]);
-
   function handleCpfChange(value: string) {
     setCpf(formatCpf(sanitizeCpf(value)));
     setError("");
     setFieldErrors((current) => ({ ...current, cpf: "" }));
   }
 
-  async function authenticate(email: string, currentPassword: string) {
+  async function authenticate(login: string, currentPassword: string) {
     const response = await apiRequest<LoginResponse>("/api/auth/login", {
       method: "POST",
       auth: false,
       body: {
-        email: email.trim().toLowerCase(),
+        login,
         password: currentPassword,
       },
     });
@@ -126,17 +113,10 @@ export default function LoginPage() {
       return;
     }
 
-    const loginEmail = resolveLoginEmail(cpf);
-
-    if (!loginEmail) {
-      setError("CPF ou senha inválidos.");
-      return;
-    }
-
     setLoading(true);
 
     try {
-      await authenticate(loginEmail, password);
+      await authenticate(sanitizeCpf(cpf), password);
     } catch (rawError) {
       setError(normalizeAuthError(rawError));
     } finally {
@@ -156,7 +136,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await authenticate(DEMO_EMAIL, DEMO_PASSWORD);
+      await authenticate(DEMO_CPF, DEMO_PASSWORD);
     } catch (rawError) {
       setError(normalizeAuthError(rawError));
     } finally {
@@ -263,7 +243,7 @@ export default function LoginPage() {
                         inputMode="numeric"
                         autoComplete="username"
                         maxLength={14}
-                        value={formattedCpf}
+                        value={cpf}
                         onChange={(event) => handleCpfChange(event.target.value)}
                         placeholder="000.000.000-00"
                         className="h-[46px] w-full rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-[16px] font-medium text-[#0F172A] outline-none transition focus:border-[#2563EB] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.12)] placeholder:text-[#94A3B8]"

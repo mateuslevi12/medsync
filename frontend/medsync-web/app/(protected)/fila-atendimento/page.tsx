@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { mapQueueSearchQuery } from "@/lib/form-mappers";
 import { formatCpf } from "@/lib/input-masks";
 import { onlyDigits } from "@/lib/input-sanitizers";
+import { getCurrentUser, getPermissionMessage, hasPermission } from "@/lib/rbac";
 import type { AmbulatoryAttendanceResponse } from "@/lib/types";
 import {
   callMedical,
@@ -33,6 +34,10 @@ type IntakePatientSummary = {
 
 export default function FilaAtendimentoPage() {
   const router = useRouter();
+  const currentRole = getCurrentUser()?.role;
+  const canInsertQueue = hasPermission("queue.insert", currentRole);
+  const canCallTriage = hasPermission("queue.callTriage", currentRole);
+  const canCallMedical = hasPermission("queue.callMedical", currentRole);
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -96,6 +101,16 @@ export default function FilaAtendimentoPage() {
   }
 
   async function handleQueueAction(row: AmbulatoryAttendanceResponse) {
+    if (row.status === "AGUARDANDO_TRIAGEM" && !canCallTriage) {
+      setPageError(getPermissionMessage("queue.callTriage"));
+      return;
+    }
+
+    if (row.status === "AGUARDANDO_MEDICO" && !canCallMedical) {
+      setPageError(getPermissionMessage("queue.callMedical"));
+      return;
+    }
+
     setActiveRowId(row.id);
     setPageError(null);
 
@@ -207,7 +222,11 @@ export default function FilaAtendimentoPage() {
             Filtros
           </Button>
           <Button variant="outline">Sala</Button>
-          <Button onClick={() => setModalOpen(true)}>
+          <Button
+            onClick={() => setModalOpen(true)}
+            disabled={!canInsertQueue}
+            title={!canInsertQueue ? getPermissionMessage("queue.insert") : undefined}
+          >
             <Plus className="size-4" />
             Incluir paciente
           </Button>
@@ -286,11 +305,32 @@ export default function FilaAtendimentoPage() {
                   <td className="table-cell">{row.patientAge ?? "-"} anos</td>
                   <td className="table-cell">
                     <div className="flex gap-3">
-                      <Button size="sm" onClick={() => void handleQueueAction(row)} disabled={activeRowId === row.id}>
-                        {activeRowId === row.id ? "Abrindo..." : "Chamar"}
+                      <Button
+                        size="sm"
+                        onClick={() => void handleQueueAction(row)}
+                        disabled={
+                          activeRowId === row.id ||
+                          (row.status === "AGUARDANDO_TRIAGEM" && !canCallTriage) ||
+                          (row.status === "AGUARDANDO_MEDICO" && !canCallMedical)
+                        }
+                        title={
+                          row.status === "AGUARDANDO_TRIAGEM" && !canCallTriage
+                            ? getPermissionMessage("queue.callTriage")
+                            : row.status === "AGUARDANDO_MEDICO" && !canCallMedical
+                              ? getPermissionMessage("queue.callMedical")
+                              : undefined
+                        }
+                      >
+                        {activeRowId === row.id
+                          ? "Abrindo..."
+                          : row.status === "AGUARDANDO_TRIAGEM"
+                            ? "Chamar triagem"
+                            : row.status === "AGUARDANDO_MEDICO"
+                              ? "Chamar médico"
+                              : "Abrir"}
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/patients/${row.patientId}/record`}>
+                        <Link href={currentRole === "RECEPTIONIST" ? `/patients/${row.patientId}` : `/patients/${row.patientId}/record`}>
                           <FileText className="size-4" />
                         </Link>
                       </Button>

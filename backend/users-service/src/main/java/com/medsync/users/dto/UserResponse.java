@@ -7,8 +7,11 @@ import java.time.Instant;
 public record UserResponse(
         Long id,
         String name,
+        String cpf,
         String email,
         Role role,
+        boolean active,
+        Instant lastLoginAt,
         Instant createdAt,
         Instant updatedAt
 ) {

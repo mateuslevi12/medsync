@@ -138,6 +138,14 @@ docker run --rm -i \
 - Prometheus: [http://localhost:9090](http://localhost:9090)
 - Grafana: [http://localhost:3001](http://localhost:3001)
 
+## Kubernetes Dashboard
+
+O projeto inclui artefatos opcionais para instalar o Kubernetes Dashboard como complemento operacional ao Prometheus/Grafana.
+
+- acesso recomendado: `kubectl port-forward`
+- não expor publicamente por Ingress ou LoadBalancer
+- documentação: [docs/kubernetes-dashboard.md](docs/kubernetes-dashboard.md)
+
 ## Deploy real em VPS Hostinger com k3s
 
 O projeto possui um overlay especifico para deploy real em VPS com k3s:
@@ -170,6 +178,7 @@ Documentos principais:
 - [docs/validacao-final-fluxo-hospitalar.md](docs/validacao-final-fluxo-hospitalar.md)
 - [docs/arquitetura-final.md](docs/arquitetura-final.md)
 - [docs/monitoramento.md](docs/monitoramento.md)
+- [docs/kubernetes-dashboard.md](docs/kubernetes-dashboard.md)
 - [docs/deploy-kubernetes.md](docs/deploy-kubernetes.md)
 - [docs/ci-cd.md](docs/ci-cd.md)
 - [docs/testes-carga.md](docs/testes-carga.md)

@@ -20,6 +20,11 @@ export function removeExtraSpaces(value: string) {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+export function normalizeSpaces(value: string, { trim = true }: { trim?: boolean } = {}) {
+  const normalized = (value ?? "").replace(/\s+/g, " ");
+  return trim ? normalized.trim() : normalized;
+}
+
 export function limitLength(value: string, max: number) {
   return (value ?? "").slice(0, Math.max(0, max));
 }
@@ -28,9 +33,9 @@ function stripHtml(value: string) {
   return (value ?? "").replace(HTML_TAG_REGEX, " ").replace(/[<>]/g, "");
 }
 
-export function sanitizeName(value: string) {
+export function sanitizeName(value: string, options?: { trim?: boolean }) {
   const cleaned = stripHtml(value).replace(/[^\p{L}\s'’-]/gu, " ");
-  return limitLength(removeExtraSpaces(cleaned), 120);
+  return limitLength(normalizeSpaces(cleaned, options), 120);
 }
 
 export function sanitizeCpf(value: string) {
@@ -146,10 +151,10 @@ export function sanitizeEmail(value: string) {
   return limitLength(stripHtml(value).trim().toLowerCase(), 120);
 }
 
-export function sanitizeAddress(value: string, maxLength = 255) {
-  return limitLength(removeExtraSpaces(stripHtml(value)), maxLength);
+export function sanitizeAddress(value: string, maxLength = 255, options?: { trim?: boolean }) {
+  return limitLength(normalizeSpaces(stripHtml(value), options), maxLength);
 }
 
-export function sanitizeSearchText(value: string, maxLength = 80) {
-  return limitLength(removeExtraSpaces(stripHtml(value)), maxLength);
+export function sanitizeSearchText(value: string, maxLength = 80, options?: { trim?: boolean }) {
+  return limitLength(normalizeSpaces(stripHtml(value), options), maxLength);
 }

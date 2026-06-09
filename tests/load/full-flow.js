@@ -10,9 +10,12 @@ import {
   findNotificationByAggregate,
   fullFlowOptions,
   getAmbulatoryAttendance,
+  getAuthMe,
   getMedicalRecord,
+  getMedicalRecordSummary,
   getMedicalTimeline,
   getPatientById,
+  getPatientByCpf,
   listAmbulatoryQueue,
   listPatientAllergies,
   listPatientVaccines,
@@ -32,11 +35,18 @@ export default function () {
   group("full distributed flow", () => {
     const auth = login();
     const token = auth.token;
+    getAuthMe(token, {
+      id: auth.user && auth.user.id,
+      cpf: auth.user && auth.user.cpf,
+      email: auth.user && auth.user.email,
+      role: auth.user && auth.user.role
+    });
 
     markAllNotificationsAsRead(token);
 
     const patient = createPatient(token);
     getPatientById(token, patient.id);
+    getPatientByCpf(token, patient.documentNumber);
 
     createPatientAllergy(token, patient.id, {
       description: "Dipirona monoidratada"
@@ -81,6 +91,7 @@ export default function () {
     getAmbulatoryAttendance(token, attendance.id);
     const record = getMedicalRecord(token, patient.id);
     const timeline = getMedicalTimeline(token, patient.id);
+    getMedicalRecordSummary(token);
 
     if (!record.medicalAttendances || record.medicalAttendances.length === 0) {
       throw new Error(`Nenhum atendimento medico foi retornado para o paciente ${patient.id}.`);

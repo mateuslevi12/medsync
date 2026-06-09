@@ -386,7 +386,7 @@ export function PatientIntakeModal({
                             ? digits.length <= 11
                               ? formatCpf(digits)
                               : formatCns(digits)
-                            : sanitizeSearchText(rawValue, 80);
+                            : sanitizeSearchText(rawValue, 80, { trim: false });
                         setSearchQuery(nextValue);
                       }}
                       onKeyDown={handleSearchKeyDown}
@@ -474,7 +474,7 @@ export function PatientIntakeModal({
                   value={form.fullName}
                   onChange={(event) => {
                     setFieldErrors((current) => ({ ...current, fullName: "" }));
-                    setForm({ ...form, fullName: sanitizeName(event.target.value) });
+                    setForm({ ...form, fullName: sanitizeName(event.target.value, { trim: false }) });
                   }}
                   maxLength={120}
                 />

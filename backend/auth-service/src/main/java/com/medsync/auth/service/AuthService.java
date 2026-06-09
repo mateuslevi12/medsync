@@ -20,23 +20,36 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     public AuthResponse login(LoginRequest request) {
-        InternalUserResponse user = usersServiceClient.findByEmail(request.email().toLowerCase().trim());
+        String login = request.login().trim();
+        InternalUserResponse user = login.contains("@")
+                ? usersServiceClient.findByEmail(login.toLowerCase())
+                : usersServiceClient.findByCpf(normalizeCpf(login));
 
         if (user == null || !passwordEncoder.matches(request.password(), user.password())) {
             throw new UnauthorizedException("E-mail ou senha inválidos");
         }
+
+        if (!user.active()) {
+            throw new UnauthorizedException("Usuário inativo. Procure um administrador.");
+        }
+
+        usersServiceClient.registerSuccessfulLogin(user.email());
 
         String token = jwtService.generateToken(user.id(), user.name(), user.email(), user.role());
 
         return new AuthResponse(
                 token,
                 "Bearer",
-                new UserPayload(user.id(), user.name(), user.email(), user.role())
+                new UserPayload(user.id(), user.name(), user.cpf(), user.email(), user.role())
         );
     }
 
     public UserPayload me(String email) {
         InternalUserResponse user = usersServiceClient.findByEmail(email);
-        return new UserPayload(user.id(), user.name(), user.email(), user.role());
+        return new UserPayload(user.id(), user.name(), user.cpf(), user.email(), user.role());
+    }
+
+    private String normalizeCpf(String cpf) {
+        return cpf == null ? "" : cpf.replaceAll("\\D", "");
     }
 }

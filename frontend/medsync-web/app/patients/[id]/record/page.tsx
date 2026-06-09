@@ -25,6 +25,8 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { formatCns, formatCpf, formatPhone } from "@/lib/input-masks";
+import { printHtmlDocument, printTextBlock, printValue } from "@/lib/print";
+import { getCurrentUser, getPermissionMessage, hasPermission } from "@/lib/rbac";
 import type {
   AllergySnapshotResponse,
   MedicalRecordResponse,
@@ -425,6 +427,8 @@ function PageSkeleton() {
 export default function PatientRecordPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const currentRole = getCurrentUser()?.role;
+  const canPrintRecord = hasPermission("record.print", currentRole);
   const [forceDemo, setForceDemo] = useState(isDemoModeEnabled());
   const [record, setRecord] = useState<MedicalRecordResponse | null>(null);
   const [patient, setPatient] = useState<PatientResponse | null>(null);
@@ -581,12 +585,122 @@ export default function PatientRecordPage() {
 
   function handlePrint() {
     try {
-      if (typeof window === "undefined" || typeof window.print !== "function") {
-        throw new Error("Impressão indisponível");
+      if (!record) {
+        throw new Error("Prontuário indisponível");
       }
 
       setNotice(null);
-      window.print();
+
+      if (!canPrintRecord) {
+        setNotice(getPermissionMessage("record.print"));
+        return;
+      }
+
+      const triageHtml = sortedTriages
+        .map(
+          (item, index) => `
+            <div class="print-card">
+              <div><span class="print-label">Triagem ${index + 1}</span><span class="print-value">${printValue(formatDateTime(item.triageCompletedAt || item.triageStartedAt || item.createdAt))}</span></div>
+              <div class="print-divider"></div>
+              <div class="print-grid">
+                <div><span class="print-label">Classificação</span><span class="print-value">${printValue(riskClassificationToLabel(item.riskClassification) || "Não informado")}</span></div>
+                <div><span class="print-label">Destino</span><span class="print-value">${printValue(item.destination)}</span></div>
+                <div><span class="print-label">Pressão arterial</span><span class="print-value">${printValue(item.bloodPressure)}</span></div>
+                <div><span class="print-label">Temperatura</span><span class="print-value">${printValue(item.temperature)}</span></div>
+              </div>
+              <div class="print-divider"></div>
+              <div><span class="print-label">Observações</span><span class="print-value">${printTextBlock(item.observations || "Sem observações.")}</span></div>
+            </div>
+          `
+        )
+        .join("");
+
+      const attendanceHtml = sortedAttendances
+        .map(
+          (item, index) => `
+            <div class="print-card">
+              <div><span class="print-label">Atendimento médico ${index + 1}</span><span class="print-value">${printValue(formatDateTime(item.completedAt || item.createdAt))}</span></div>
+              <div class="print-divider"></div>
+              <div><span class="print-label">Avaliação médica</span><span class="print-value">${printTextBlock(item.assessment || "Não informado")}</span></div>
+              <div class="print-divider"></div>
+              <div><span class="print-label">Plano e condutas</span><span class="print-value">${printTextBlock(item.plan || "Não informado")}</span></div>
+              <div class="print-divider"></div>
+              <div><span class="print-label">CID-10</span><span class="print-value">${printValue(item.cidCodes.map(cidLabel).join(", "), "Não informado")}</span></div>
+              <div class="print-divider"></div>
+              <div><span class="print-label">Prescrições e encaminhamentos</span><span class="print-value">${printValue(
+                [
+                  item.medications.length ? `${item.medications.length} medicamento(s)` : "",
+                  item.procedures.length ? `${item.procedures.length} procedimento(s)` : "",
+                  item.exams.length ? `${item.exams.length} exame(s)` : "",
+                  item.orientations.length ? `${item.orientations.length} orientação(ões)` : "",
+                  item.recipes.length ? `${item.recipes.length} receita(s)` : "",
+                  item.certificates.length ? `${item.certificates.length} atestado(s)` : "",
+                  item.declarations.length ? `${item.declarations.length} declaração(ões)` : ""
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+                "Sem condutas registradas"
+              )}</span></div>
+            </div>
+          `
+        )
+        .join("");
+
+      const timelineHtml = sortedTimeline
+        .map(
+          (event) => `
+            <li>
+              <strong>${printValue(formatDateTime(event.createdAt))}</strong><br />
+              ${printValue(event.title)}${event.description ? `<br />${printTextBlock(event.description)}` : ""}
+            </li>
+          `
+        )
+        .join("");
+
+      printHtmlDocument(
+        `Prontuário - ${record.patientName}`,
+        `
+          <main class="print-page">
+            <section class="print-header">
+              <h1 class="print-title">Prontuário do Paciente</h1>
+              <p class="print-subtitle">HOSP. MUN. MONSENHOR DOURADO</p>
+            </section>
+            <section class="print-section">
+              <h2 class="print-section-title">Identificação do paciente</h2>
+              <div class="print-grid">
+                <div><span class="print-label">Paciente</span><span class="print-value">${printValue(record.patientName)}</span></div>
+                <div><span class="print-label">CPF</span><span class="print-value">${printValue(record.patientCpf ? formatCpf(record.patientCpf) : "Não informado")}</span></div>
+                <div><span class="print-label">CNS</span><span class="print-value">${printValue(record.patientCns)}</span></div>
+                <div><span class="print-label">Data de nascimento</span><span class="print-value">${printValue(formatDate(patient?.birthDate || ""))}</span></div>
+                <div><span class="print-label">Telefone</span><span class="print-value">${printValue(patient?.phone ? formatPhone(patient.phone) : "Não informado")}</span></div>
+                <div><span class="print-label">Endereço</span><span class="print-value">${printValue(patient?.address)}</span></div>
+              </div>
+            </section>
+            <section class="print-section">
+              <h2 class="print-section-title">Dados pessoais e clínicos</h2>
+              <div class="print-grid">
+                <div><span class="print-label">Sexo</span><span class="print-value">${printValue(genderLabel(patient?.gender) || "Não informado")}</span></div>
+                <div><span class="print-label">Idade</span><span class="print-value">${printValue(record.patientAge != null ? `${record.patientAge} anos` : "Não informado")}</span></div>
+                <div><span class="print-label">Alergias</span><span class="print-value">${printValue(normalizedAllergies.map((item) => item.title).join(", "), "Nenhuma alergia informada")}</span></div>
+                <div><span class="print-label">Vacinas</span><span class="print-value">${printValue(normalizedVaccines.map((item) => `${item.name} (${item.status})`).join(", "), "Nenhuma vacina informada")}</span></div>
+              </div>
+            </section>
+            <section class="print-section">
+              <h2 class="print-section-title">Triagens / acolhimentos</h2>
+              ${triageHtml || '<div class="print-card"><span class="print-value">Nenhuma triagem registrada.</span></div>'}
+            </section>
+            <section class="print-section">
+              <h2 class="print-section-title">Atendimentos médicos</h2>
+              ${attendanceHtml || '<div class="print-card"><span class="print-value">Nenhum atendimento médico registrado.</span></div>'}
+            </section>
+            <section class="print-section">
+              <h2 class="print-section-title">Linha do tempo</h2>
+              ${timelineHtml ? `<ul class="print-list">${timelineHtml}</ul>` : '<div class="print-card"><span class="print-value">Sem eventos registrados.</span></div>'}
+            </section>
+            <footer class="print-footer">Documento gerado pelo MedSync · Emitido em ${printValue(formatDateTime(new Date().toISOString()))}</footer>
+          </main>
+        `
+      );
     } catch {
       setNotice("Impressão não disponível neste ambiente.");
     }
@@ -674,6 +788,8 @@ export default function PatientRecordPage() {
                     <Button
                       type="button"
                       onClick={handlePrint}
+                      disabled={!canPrintRecord}
+                      title={!canPrintRecord ? getPermissionMessage("record.print") : undefined}
                       className="h-9 rounded-lg border-0 bg-white px-4 text-[13px] font-bold text-[#0F172A] hover:bg-white/90"
                     >
                       <Printer className="mr-2 size-4" />

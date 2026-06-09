@@ -45,4 +45,5 @@ app:
   internal-token: ${INTERNAL_SERVICE_TOKEN:medsync-internal-token}
   seed:
     admin-email: ${ADMIN_EMAIL:admin@medsync.com}
+    admin-cpf: ${ADMIN_CPF:00000000000}
     admin-password: ${ADMIN_PASSWORD:admin123}

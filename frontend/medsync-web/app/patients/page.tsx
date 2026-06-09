@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { getCurrentUser, hasPermission } from "@/lib/rbac";
 import type { PatientResponse } from "@/lib/types";
 import { getPatients } from "@/services/patients";
 import { getServiceErrorMessage, isDemoModeEnabled } from "@/services/runtime";
@@ -16,6 +17,8 @@ function getPatientAge(birthDate?: string) {
 }
 
 export default function PatientsPage() {
+  const currentRole = getCurrentUser()?.role;
+  const canViewRecord = hasPermission("record.view", currentRole);
   const [forceDemo, setForceDemo] = useState(isDemoModeEnabled());
   const [patients, setPatients] = useState<PatientResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,9 +109,15 @@ export default function PatientsPage() {
                 <td className="table-cell">{patient.phone}</td>
                 <td className="table-cell">
                   <div className="flex gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/patients/${patient.id}/record`}>Prontuário</Link>
-                    </Button>
+                    {canViewRecord ? (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/patients/${patient.id}/record`}>Prontuário</Link>
+                      </Button>
+                    ) : (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/patients/${patient.id}`}>Detalhes</Link>
+                      </Button>
+                    )}
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/patients/${patient.id}/timeline`}>Timeline</Link>
                     </Button>

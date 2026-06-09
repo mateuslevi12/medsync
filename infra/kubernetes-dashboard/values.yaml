@@ -1,0 +1,11 @@
+# Values mínimos para instalar o Kubernetes Dashboard via Helm no MedSync.
+# A instalação é voltada para k3s e acesso local via kubectl port-forward.
+# Não expõe o Dashboard publicamente e não cria Ingress.
+
+app:
+  ingress:
+    enabled: false
+
+kong:
+  proxy:
+    type: ClusterIP

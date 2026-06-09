@@ -21,20 +21,20 @@ public class MedicalRecordController {
     private final MedicalRecordService medicalRecordService;
 
     @GetMapping("/patient/{patientId}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public MedicalRecordResponse findPatientRecord(@PathVariable Long patientId) {
         return medicalRecordService.findByPatientId(patientId);
     }
 
     @GetMapping("/patient/{patientId}/timeline")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public List<PatientTimelineEventResponse> findPatientTimeline(@PathVariable Long patientId) {
         return medicalRecordService.findTimeline(patientId);
     }
 
     @PostMapping("/patient/{patientId}/medical-attendances")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','HEALTH_PROFESSIONAL')")
     public MedicalAttendanceResponse createManualMedicalAttendance(
             @PathVariable Long patientId,
             @Valid @RequestBody FinishMedicalAttendanceRequest request

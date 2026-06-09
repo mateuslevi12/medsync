@@ -155,7 +155,7 @@ export default function EditPatientPage() {
                       value={fullName}
                       onChange={(event) => {
                         setFieldErrors((current) => ({ ...current, fullName: "" }));
-                        setFullName(sanitizeName(event.target.value));
+                        setFullName(sanitizeName(event.target.value, { trim: false }));
                       }}
                       maxLength={120}
                       required
@@ -261,7 +261,7 @@ export default function EditPatientPage() {
                         value={address}
                         onChange={(event) => {
                           setFieldErrors((current) => ({ ...current, address: "" }));
-                          setAddress(sanitizeAddress(event.target.value));
+                          setAddress(sanitizeAddress(event.target.value, 255, { trim: false }));
                         }}
                         maxLength={255}
                         className="pl-11"

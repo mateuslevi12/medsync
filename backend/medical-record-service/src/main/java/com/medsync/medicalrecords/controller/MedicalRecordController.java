@@ -18,20 +18,20 @@ public class MedicalRecordController {
     private final MedicalRecordService medicalRecordService;
 
     @GetMapping("/patient/{patientId}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public MedicalRecordResponse findPatientRecord(@PathVariable Long patientId) {
         return medicalRecordService.findByPatientId(patientId);
     }
 
     @GetMapping("/patient/{patientId}/timeline")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public List<PatientTimelineEventResponse> findPatientTimeline(@PathVariable Long patientId) {
         return medicalRecordService.findTimeline(patientId);
     }
 
     @PostMapping("/patient/{patientId}/triage-records")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public AmbulatoryAttendanceResponse createTriageRecord(
             @PathVariable Long patientId,
             @Valid @RequestBody CreateTriageRecordRequest request
@@ -41,7 +41,7 @@ public class MedicalRecordController {
 
     @PostMapping("/patient/{patientId}/medical-attendances")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','HEALTH_PROFESSIONAL')")
     public MedicalAttendanceResponse createMedicalAttendance(
             @PathVariable Long patientId,
             @Valid @RequestBody CreateMedicalAttendanceRequest request
@@ -51,7 +51,7 @@ public class MedicalRecordController {
 
     @PostMapping("/patient/{patientId}/timeline-events")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR','HEALTH_PROFESSIONAL')")
     public PatientTimelineEventResponse createTimelineEvent(
             @PathVariable Long patientId,
             @Valid @RequestBody CreateTimelineEventRequest request
@@ -60,7 +60,7 @@ public class MedicalRecordController {
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public MedicalRecordSummaryResponse getSummary() {
         return medicalRecordService.findSummary();
     }

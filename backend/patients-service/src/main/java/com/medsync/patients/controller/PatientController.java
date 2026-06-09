@@ -21,13 +21,13 @@ public class PatientController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public PatientResponse create(@Valid @RequestBody CreatePatientRequest request) {
         return patientService.create(request);
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public List<PatientResponse> findAll(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String cpf
@@ -36,19 +36,19 @@ public class PatientController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public PatientResponse findById(@PathVariable Long id) {
         return patientService.findById(id);
     }
 
     @GetMapping("/cpf/{cpf}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public PatientResponse findByCpf(@PathVariable String cpf) {
         return patientService.findByCpf(cpf);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public PatientResponse update(@PathVariable Long id, @Valid @RequestBody UpdatePatientRequest request) {
         return patientService.update(id, request);
     }

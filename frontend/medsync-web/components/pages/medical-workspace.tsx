@@ -14,6 +14,8 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { mapMedicalConductsToPayload, mapMedicalFormToPayload } from "@/lib/form-mappers";
 import { formatCns, formatCpf, formatInteger, formatPhone } from "@/lib/input-masks";
+import { printHtmlDocument, printTextBlock, printValue } from "@/lib/print";
+import { getCurrentUser, getPermissionMessage, hasPermission } from "@/lib/rbac";
 import { sanitizeInteger, sanitizeProcedureCode, sanitizeText } from "@/lib/input-sanitizers";
 import { validateRequiredText } from "@/lib/input-validators";
 import type {
@@ -402,6 +404,9 @@ function ToastCard({ toast }: { toast: ToastState }) {
 
 export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
   const router = useRouter();
+  const currentRole = getCurrentUser()?.role;
+  const canEditMedical = hasPermission("medical.edit", currentRole);
+  const canPrintConducts = hasPermission("conduct.print", currentRole);
   const [forceDemo, setForceDemo] = useState(isDemoModeEnabled());
   const [attendance, setAttendance] = useState<AmbulatoryAttendanceResponse | null>(null);
   const [patientAllergies, setPatientAllergies] = useState<PatientAllergyResponse[]>([]);
@@ -621,6 +626,10 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
   }
 
   function openAction(label: string) {
+    if (!canEditMedical) {
+      notify("Permissão negada", getPermissionMessage("medical.edit"));
+      return;
+    }
     setConductError(null);
     setActiveAction(actionLabelToId(label as MedicalActionLabel));
   }
@@ -911,15 +920,150 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
   }
 
   function handlePrintFallback() {
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
+    if (!attendance) {
+      notify("Aviso", "Nenhuma conduta disponível para impressão.");
       return;
     }
 
-    notify("Aviso", "Impressão não disponível neste ambiente.");
+    if (!canPrintConducts) {
+      notify("Permissão negada", getPermissionMessage("conduct.print"));
+      return;
+    }
+
+    const sections = [
+      ...conducts.medications.map((item) => ({
+        type: "Receita médica",
+        title: item.medicationName,
+        content: `Posologia: ${item.dosage}\nProtocolos: ${item.protocol || "Não informado"}\nAgendado para: ${formatDateTime(item.scheduledAt)}`
+      })),
+      ...conducts.procedures.map((item) => ({
+        type: "Procedimento",
+        title: item.procedureName,
+        content: `Observações: ${item.observations || "Não informado"}\nAgendado para: ${formatDateTime(item.scheduledAt)}`
+      })),
+      ...conducts.observationPrescriptions.map((item) => ({
+        type: "Observação/conduta",
+        title: item.title,
+        content: `${item.description}\nTempo de observação: ${item.observationTime || "Não informado"}`
+      })),
+      ...conducts.exams.map((item) => ({
+        type: "Solicitação de exames",
+        title: item.examName,
+        content: `Observações: ${item.observations || "Não informado"}`
+      })),
+      ...conducts.orientations.map((item) => ({
+        type: "Orientações gerais/conduta",
+        title: item.title,
+        content: item.text
+      })),
+      ...conducts.certificates.map((item) => ({
+        type: "Atestado",
+        title: `Atestado médico (${item.days} dia(s))`,
+        content: item.text
+      })),
+      ...conducts.declarations.map((item) => ({
+        type: "Declaração",
+        title: "Declaração de comparecimento",
+        content: item.text
+      })),
+      ...conducts.recipes.map((item) => ({
+        type: "Receita médica",
+        title: item.favoriteName || "Receita",
+        content: item.text
+      }))
+    ];
+
+    if (sections.length === 0) {
+      notify("Aviso", "Nenhuma conduta disponível para impressão.");
+      return;
+    }
+
+    printHtmlDocument(
+      `Condutas - ${attendance.patientName}`,
+      `
+        <main class="print-page">
+          <section class="print-header">
+            <h1 class="print-title">Condutas do Atendimento</h1>
+            <p class="print-subtitle">${printValue(UNIT_NAME)}</p>
+          </section>
+          <section class="print-section">
+            <h2 class="print-section-title">Identificação do paciente</h2>
+            <div class="print-grid">
+              <div><span class="print-label">Paciente</span><span class="print-value">${printValue(attendance.patientName)}</span></div>
+              <div><span class="print-label">CPF</span><span class="print-value">${printValue(formatCpf(attendance.patientCpf || ""))}</span></div>
+              <div><span class="print-label">CNS</span><span class="print-value">${printValue(attendance.patientCns)}</span></div>
+              <div><span class="print-label">Atendimento</span><span class="print-value">${printValue(formatDateTime(attendance.medicalCompletedAt || attendance.medicalStartedAt || nowIso()))}</span></div>
+              <div><span class="print-label">Profissional responsável</span><span class="print-value">${printValue(form.notifications === "Pesquisar..." ? "Equipe médica" : "Equipe médica")}</span></div>
+            </div>
+          </section>
+          ${sections
+            .map(
+              (item) => `
+                <section class="print-section">
+                  <h2 class="print-section-title">${printValue(item.type)}</h2>
+                  <div class="print-card">
+                    <div><span class="print-label">Título</span><span class="print-value">${printValue(item.title)}</span></div>
+                    <div class="print-divider"></div>
+                    <div><span class="print-label">Conteúdo da conduta</span><span class="print-value">${printTextBlock(item.content)}</span></div>
+                    <div class="signature-line">Assinatura / carimbo</div>
+                  </div>
+                </section>
+              `
+            )
+            .join("")}
+          <footer class="print-footer">Documento gerado pelo MedSync</footer>
+        </main>
+      `
+    );
+  }
+
+  function printSingleConduct(type: string, title: string, content: string) {
+    if (!attendance) {
+      return;
+    }
+
+    if (!canPrintConducts) {
+      notify("Permissão negada", getPermissionMessage("conduct.print"));
+      return;
+    }
+
+    printHtmlDocument(
+      `${type} - ${attendance.patientName}`,
+      `
+        <main class="print-page">
+          <section class="print-header">
+            <h1 class="print-title">${printValue(type)}</h1>
+            <p class="print-subtitle">${printValue(UNIT_NAME)}</p>
+          </section>
+          <section class="print-section">
+            <div class="print-grid">
+              <div><span class="print-label">Paciente</span><span class="print-value">${printValue(attendance.patientName)}</span></div>
+              <div><span class="print-label">Data e hora do atendimento</span><span class="print-value">${printValue(formatDateTime(attendance.medicalCompletedAt || attendance.medicalStartedAt || nowIso()))}</span></div>
+              <div><span class="print-label">Profissional responsável</span><span class="print-value">Equipe médica</span></div>
+              <div><span class="print-label">CPF</span><span class="print-value">${printValue(formatCpf(attendance.patientCpf || ""))}</span></div>
+              <div><span class="print-label">CNS</span><span class="print-value">${printValue(attendance.patientCns)}</span></div>
+            </div>
+          </section>
+          <section class="print-section">
+            <div><span class="print-label">Tipo da conduta</span><span class="print-value">${printValue(type)}</span></div>
+            <div class="print-divider"></div>
+            <div><span class="print-label">Título</span><span class="print-value">${printValue(title)}</span></div>
+            <div class="print-divider"></div>
+            <div><span class="print-label">Conteúdo da conduta</span><span class="print-value">${printTextBlock(content)}</span></div>
+            <div class="signature-line">Assinatura / carimbo</div>
+          </section>
+          <footer class="print-footer">Documento gerado pelo MedSync</footer>
+        </main>
+      `
+    );
   }
 
   async function handleSubmit() {
+    if (!canEditMedical) {
+      setError(getPermissionMessage("medical.edit"));
+      return;
+    }
+
     if (!attendance) {
       return;
     }
@@ -1037,6 +1181,12 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
           </div>
         ) : null}
 
+        {!loading && attendance && !canEditMedical ? (
+          <div className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
+            {getPermissionMessage("medical.edit")}
+          </div>
+        ) : null}
+
         {loading || !attendance ? (
           <div className="surface-card p-5 text-sm text-muted-foreground">Carregando atendimento médico...</div>
         ) : (
@@ -1139,6 +1289,7 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
               </div>
             </div>
 
+            <fieldset disabled={!canEditMedical} className="contents">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
               <div className="space-y-4">
                 <div className="surface-card p-5">
@@ -1281,7 +1432,12 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
                 </div>
               </div>
 
-              <ActionListCard actions={[...medicalActions]} onActionClick={openAction} className="w-full xl:w-[300px]" />
+              <ActionListCard
+                actions={[...medicalActions]}
+                onActionClick={openAction}
+                disabledActions={!canEditMedical ? [...medicalActions] : []}
+                className="w-full xl:w-[300px]"
+              />
             </div>
 
             <div className="flex justify-end gap-3">
@@ -1294,10 +1450,15 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
               <Button variant="destructive" onClick={() => router.push("/fila-atendimento")} disabled={saving}>
                 Cancelar
               </Button>
-              <Button onClick={() => void handleSubmit()} disabled={saving}>
+              <Button
+                onClick={() => void handleSubmit()}
+                disabled={saving || !canEditMedical}
+                title={!canEditMedical ? getPermissionMessage("medical.edit") : undefined}
+              >
                 {saving ? "Finalizando..." : "Finalizar atendimento"}
               </Button>
             </div>
+            </fieldset>
           </>
         )}
       </div>
@@ -1351,7 +1512,7 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-[#0F172A]">Medicamentos prescritos</h3>
             <div className="overflow-hidden rounded-xl border border-[#E2E8F0]">
-              <div className="grid grid-cols-[minmax(0,1.2fr)_180px_minmax(0,1.5fr)_110px_90px] gap-3 border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#52627A]">
+              <div className="grid grid-cols-[minmax(0,1.2fr)_180px_minmax(0,1.5fr)_110px_180px] gap-3 border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#52627A]">
                 <span>Medicamento</span>
                 <span>Realizar às</span>
                 <span>Posologia</span>
@@ -1362,7 +1523,7 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
                 <p className="px-4 py-4 text-sm text-[#64748B]">Nenhum medicamento adicionado.</p>
               ) : (
                 conducts.medications.map((item) => (
-                  <div key={item.id} className="grid grid-cols-[minmax(0,1.2fr)_180px_minmax(0,1.5fr)_110px_90px] gap-3 border-b border-[#E2E8F0] px-4 py-3 text-sm text-[#0F172A] last:border-b-0">
+                  <div key={item.id} className="grid grid-cols-[minmax(0,1.2fr)_180px_minmax(0,1.5fr)_110px_180px] gap-3 border-b border-[#E2E8F0] px-4 py-3 text-sm text-[#0F172A] last:border-b-0">
                     <div>
                       <p className="font-semibold">{item.medicationName}</p>
                       {item.protocol ? <p className="mt-1 text-xs text-[#64748B]">{item.protocol}</p> : null}
@@ -1370,7 +1531,24 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
                     <span>{formatDateTime(item.scheduledAt)}</span>
                     <span>{item.dosage}</span>
                     <StatusBadge status={item.status} />
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          printSingleConduct(
+                            "Receita médica",
+                            item.medicationName,
+                            `Posologia: ${item.dosage}\nProtocolos: ${item.protocol || "Não informado"}\nAgendado para: ${formatDateTime(item.scheduledAt)}`
+                          )
+                        }
+                        disabled={!canPrintConducts}
+                        title={!canPrintConducts ? getPermissionMessage("conduct.print") : undefined}
+                      >
+                        <Printer className="size-4" />
+                        Imprimir
+                      </Button>
                       <button
                         type="button"
                         onClick={() => removeConduct("medications", item.id)}
@@ -1436,7 +1614,7 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-[#0F172A]">Procedimentos prescritos</h3>
             <div className="overflow-hidden rounded-xl border border-[#E2E8F0]">
-              <div className="grid grid-cols-[40px_minmax(0,1fr)_180px_minmax(0,1.2fr)_110px_90px] gap-3 border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#52627A]">
+              <div className="grid grid-cols-[40px_minmax(0,1fr)_180px_minmax(0,1.2fr)_110px_180px] gap-3 border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#52627A]">
                 <span />
                 <span>Procedimento</span>
                 <span>Realizar às</span>
@@ -1448,7 +1626,7 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
                 <p className="px-4 py-4 text-sm text-[#64748B]">Nenhum procedimento adicionado.</p>
               ) : (
                 conducts.procedures.map((item) => (
-                  <div key={item.id} className="grid grid-cols-[40px_minmax(0,1fr)_180px_minmax(0,1.2fr)_110px_90px] gap-3 border-b border-[#E2E8F0] px-4 py-3 text-sm text-[#0F172A] last:border-b-0">
+                  <div key={item.id} className="grid grid-cols-[40px_minmax(0,1fr)_180px_minmax(0,1.2fr)_110px_180px] gap-3 border-b border-[#E2E8F0] px-4 py-3 text-sm text-[#0F172A] last:border-b-0">
                     <label className="flex items-center">
                       <input
                         type="checkbox"
@@ -1467,7 +1645,24 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
                     <span>{formatDateTime(item.scheduledAt)}</span>
                     <span>{item.observations || "Sem observações."}</span>
                     <StatusBadge status={item.status} />
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          printSingleConduct(
+                            "Procedimento",
+                            item.procedureName,
+                            `Observações: ${item.observations || "Não informado"}\nAgendado para: ${formatDateTime(item.scheduledAt)}`
+                          )
+                        }
+                        disabled={!canPrintConducts}
+                        title={!canPrintConducts ? getPermissionMessage("conduct.print") : undefined}
+                      >
+                        <Printer className="size-4" />
+                        Imprimir
+                      </Button>
                       <button
                         type="button"
                         onClick={() => removeConduct("procedures", item.id)}
@@ -1535,13 +1730,32 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
                         <p className="mt-2 text-sm text-[#52627A]">{item.description}</p>
                         <p className="mt-2 text-xs text-[#64748B]">{item.observationTime || "Tempo não informado"}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeConduct("observationPrescriptions", item.id)}
-                        className="flex size-9 items-center justify-center rounded-xl bg-[#FEE2E2] text-[#DC2626] transition-colors hover:bg-[#FECACA]"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            printSingleConduct(
+                              "Observação/conduta",
+                              item.title,
+                              `${item.description}\nTempo de observação: ${item.observationTime || "Não informado"}`
+                            )
+                          }
+                          disabled={!canPrintConducts}
+                          title={!canPrintConducts ? getPermissionMessage("conduct.print") : undefined}
+                        >
+                          <Printer className="size-4" />
+                          Imprimir
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => removeConduct("observationPrescriptions", item.id)}
+                          className="flex size-9 items-center justify-center rounded-xl bg-[#FEE2E2] text-[#DC2626] transition-colors hover:bg-[#FECACA]"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1589,7 +1803,7 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-[#0F172A]">Exames solicitados</h3>
             <div className="overflow-hidden rounded-xl border border-[#E2E8F0]">
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_110px_90px] gap-3 border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#52627A]">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_110px_180px] gap-3 border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#52627A]">
                 <span>Exame</span>
                 <span>Observações</span>
                 <span>Estado</span>
@@ -1599,14 +1813,31 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
                 <p className="px-4 py-4 text-sm text-[#64748B]">Nenhum exame adicionado.</p>
               ) : (
                 conducts.exams.map((item) => (
-                  <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_110px_90px] gap-3 border-b border-[#E2E8F0] px-4 py-3 text-sm text-[#0F172A] last:border-b-0">
+                  <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_110px_180px] gap-3 border-b border-[#E2E8F0] px-4 py-3 text-sm text-[#0F172A] last:border-b-0">
                     <div>
                       <p className="font-semibold">{item.examName}</p>
                       {item.protocol ? <p className="mt-1 text-xs text-[#64748B]">{item.protocol}</p> : null}
                     </div>
                     <span>{item.observations || "Sem observações."}</span>
                     <StatusBadge status={item.status} />
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          printSingleConduct(
+                            "Solicitação de exames",
+                            item.examName,
+                            `Observações: ${item.observations || "Não informado"}`
+                          )
+                        }
+                        disabled={!canPrintConducts}
+                        title={!canPrintConducts ? getPermissionMessage("conduct.print") : undefined}
+                      >
+                        <Printer className="size-4" />
+                        Imprimir
+                      </Button>
                       <button
                         type="button"
                         onClick={() => removeConduct("exams", item.id)}
@@ -1664,13 +1895,26 @@ export function MedicalWorkspace({ attendanceId }: MedicalWorkspaceProps) {
                         <p className="text-sm font-semibold text-[#0F172A]">{item.title}</p>
                         <p className="mt-2 text-sm text-[#52627A]">{item.text}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeConduct("orientations", item.id)}
-                        className="flex size-9 items-center justify-center rounded-xl bg-[#FEE2E2] text-[#DC2626] transition-colors hover:bg-[#FECACA]"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => printSingleConduct("Orientações gerais/conduta", item.title, item.text)}
+                          disabled={!canPrintConducts}
+                          title={!canPrintConducts ? getPermissionMessage("conduct.print") : undefined}
+                        >
+                          <Printer className="size-4" />
+                          Imprimir
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => removeConduct("orientations", item.id)}
+                          className="flex size-9 items-center justify-center rounded-xl bg-[#FEE2E2] text-[#DC2626] transition-colors hover:bg-[#FECACA]"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))

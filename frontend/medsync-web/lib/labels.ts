@@ -1,17 +1,7 @@
+import { roleLabel } from "@/lib/rbac";
 import type { Gender, NotificationType, Role, TriagePriority, TriageStatus } from "./types";
 
-export function roleLabel(role: Role): string {
-  switch (role) {
-    case "ADMIN":
-      return "Administrador";
-    case "HEALTH_PROFESSIONAL":
-      return "Profissional de saúde";
-    case "RECEPTIONIST":
-      return "Recepcionista";
-    default:
-      return role;
-  }
-}
+export { roleLabel };
 
 export function genderLabel(gender: Gender): string {
   switch (gender) {

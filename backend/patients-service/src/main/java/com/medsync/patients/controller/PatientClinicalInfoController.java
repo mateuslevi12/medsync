@@ -30,14 +30,14 @@ public class PatientClinicalInfoController {
     private final PatientClinicalInfoService patientClinicalInfoService;
 
     @GetMapping("/allergies")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public List<PatientAllergyResponse> findAllergies(@PathVariable Long patientId) {
         return patientClinicalInfoService.findAllergies(patientId);
     }
 
     @PostMapping("/allergies")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public PatientAllergyResponse createAllergy(
             @PathVariable Long patientId,
             @Valid @RequestBody CreatePatientAllergyRequest request
@@ -47,20 +47,20 @@ public class PatientClinicalInfoController {
 
     @DeleteMapping("/allergies/{allergyId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public void deleteAllergy(@PathVariable Long patientId, @PathVariable Long allergyId) {
         patientClinicalInfoService.deleteAllergy(patientId, allergyId);
     }
 
     @GetMapping("/vaccines")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','DOCTOR','HEALTH_PROFESSIONAL')")
     public List<PatientVaccineResponse> findVaccines(@PathVariable Long patientId) {
         return patientClinicalInfoService.findVaccines(patientId);
     }
 
     @PostMapping("/vaccines")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public PatientVaccineResponse createVaccine(
             @PathVariable Long patientId,
             @Valid @RequestBody CreatePatientVaccineRequest request
@@ -69,7 +69,7 @@ public class PatientClinicalInfoController {
     }
 
     @PutMapping("/vaccines/{vaccineId}")
-    @PreAuthorize("hasAnyRole('ADMIN','HEALTH_PROFESSIONAL','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','NURSE','HEALTH_PROFESSIONAL')")
     public PatientVaccineResponse updateVaccine(
             @PathVariable Long patientId,
             @PathVariable Long vaccineId,

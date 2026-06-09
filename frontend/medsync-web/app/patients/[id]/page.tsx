@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { PatientInfoStrip, ShortcutLink, StatusPill } from "@/components/medsync-primitives";
 import { Button } from "@/components/ui/button";
+import { getCurrentUser, hasPermission } from "@/lib/rbac";
 import type { AmbulatoryAttendanceResponse, PatientResponse, PatientTimelineEventResponse } from "@/lib/types";
 import { getAmbulatoryQueue } from "@/services/ambulatory";
 import { getPatientTimeline } from "@/services/medical-records";
@@ -14,6 +15,7 @@ import { getServiceErrorMessage, isDemoModeEnabled } from "@/services/runtime";
 
 export default function PatientDetailsPage() {
   const params = useParams<{ id: string }>();
+  const canViewRecord = hasPermission("record.view", getCurrentUser()?.role);
   const [forceDemo, setForceDemo] = useState(isDemoModeEnabled());
   const [patient, setPatient] = useState<PatientResponse | null>(null);
   const [queueEntry, setQueueEntry] = useState<AmbulatoryAttendanceResponse | null>(null);
@@ -79,9 +81,11 @@ export default function PatientDetailsPage() {
             <Button asChild variant="outline">
               <Link href={`/patients/${patient.id}/edit`}>Editar cadastro</Link>
             </Button>
-            <Button asChild>
-              <Link href={`/patients/${patient.id}/record`}>Abrir prontuário</Link>
-            </Button>
+            {canViewRecord ? (
+              <Button asChild>
+                <Link href={`/patients/${patient.id}/record`}>Abrir prontuário</Link>
+              </Button>
+            ) : null}
           </>
         ) : null
       }
@@ -133,7 +137,7 @@ export default function PatientDetailsPage() {
             <div className="surface-card p-5">
               <h2 className="text-[16px] font-semibold text-foreground">Atalhos</h2>
               <div className="mt-4 space-y-3">
-                <ShortcutLink href={`/patients/${patient.id}/record`} label="Abrir prontuário" />
+                {canViewRecord ? <ShortcutLink href={`/patients/${patient.id}/record`} label="Abrir prontuário" /> : null}
                 <ShortcutLink href={`/patients/${patient.id}/timeline`} label="Abrir timeline completa" />
                 <ShortcutLink href="/fila-atendimento" label="Voltar para fila de atendimento" />
               </div>

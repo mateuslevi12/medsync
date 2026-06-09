@@ -150,3 +150,35 @@ Checks importantes:
 - `kubectl kustomize` dos quatro conjuntos de manifests: `OK`
 - overlays incluem `medical-record-service` e `mongodb`
 - workflows de deploy foram ajustados para incluir rollout do novo servico
+
+## Instalacao opcional do Kubernetes Dashboard
+
+O projeto inclui uma instalacao opcional do Kubernetes Dashboard via Helm para fins de demonstracao academica.
+
+Instalacao:
+
+```bash
+chmod +x scripts/k8s/install-kubernetes-dashboard.sh
+./scripts/k8s/install-kubernetes-dashboard.sh
+```
+
+Abrir localmente:
+
+```bash
+chmod +x scripts/k8s/open-kubernetes-dashboard.sh
+./scripts/k8s/open-kubernetes-dashboard.sh
+```
+
+O acesso recomendado e:
+
+- via `kubectl port-forward`
+- sem Ingress publico
+- sem LoadBalancer
+
+Aviso:
+
+- nao expor o Dashboard publicamente
+- nao versionar tokens
+- usar o RBAC readonly como padrao
+
+Detalhes completos em [docs/kubernetes-dashboard.md](docs/kubernetes-dashboard.md).

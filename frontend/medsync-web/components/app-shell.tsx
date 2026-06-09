@@ -20,9 +20,11 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { clearSession, getStoredUser } from "@/lib/session";
+import { hasPermission, roleLabel } from "@/lib/rbac";
 import { getUnreadNotifications } from "@/services/notifications";
 import { isDemoModeEnabled } from "@/services/runtime";
 import { cn } from "@/lib/utils";
+import type { Role } from "@/lib/types";
 
 type BreadcrumbItem = {
   label: string;
@@ -110,17 +112,6 @@ const secondaryNavigation: NavigationItem[] = [
   },
 ];
 
-function formatRole(role?: string) {
-  const normalized = (role ?? "").toUpperCase();
-
-  if (normalized === "ADMIN") return "Administrador";
-  if (normalized === "DOCTOR") return "Médico";
-  if (normalized === "NURSE") return "Enfermeiro";
-  if (normalized === "HEALTH_PROFESSIONAL") return "Profissional de saúde";
-  if (normalized === "RECEPTIONIST" || normalized === "RECEPTION") return "Recepção";
-  return role || "Equipe assistencial";
-}
-
 function defaultBreadcrumbs(pathname: string, title?: string): BreadcrumbItem[] {
   const labelMap: Record<string, string> = {
     dashboard: "Dashboard",
@@ -163,13 +154,24 @@ type SidebarContentProps = {
   pathname: string;
   userName: string;
   userRole: string;
+  rawUserRole: Role | null;
   notificationCount: number;
   onNavigate?: () => void;
   onLogout: () => void;
 };
 
-function SidebarContent({ pathname, userName, userRole, notificationCount, onNavigate, onLogout }: SidebarContentProps) {
-  const navigationWithBadge = navigation.map((item) =>
+function SidebarContent({
+  pathname,
+  userName,
+  userRole,
+  rawUserRole,
+  notificationCount,
+  onNavigate,
+  onLogout,
+}: SidebarContentProps) {
+  const navigationWithBadge = navigation
+    .filter((item) => (item.href === "/usuarios" ? hasPermission("users.access", rawUserRole) : true))
+    .map((item) =>
     item.href === "/notificacoes"
       ? {
           ...item,
@@ -247,6 +249,7 @@ export function AppShell({ title, description, breadcrumbs, actions, children }:
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userName, setUserName] = useState("Ana Ribeiro");
   const [userRole, setUserRole] = useState("Administrador");
+  const [rawUserRole, setRawUserRole] = useState<Role | null>(null);
   const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
@@ -254,7 +257,10 @@ export function AppShell({ title, description, breadcrumbs, actions, children }:
     if (!user) return;
 
     if (user.name) setUserName(user.name);
-    if (user.role) setUserRole(formatRole(user.role));
+    if (user.role) {
+      setRawUserRole(user.role);
+      setUserRole(roleLabel(user.role));
+    }
   }, []);
 
   useEffect(() => {
@@ -297,6 +303,7 @@ export function AppShell({ title, description, breadcrumbs, actions, children }:
           pathname={pathname}
           userName={userName}
           userRole={userRole}
+          rawUserRole={rawUserRole}
           notificationCount={notificationCount}
           onLogout={handleLogout}
         />
@@ -323,6 +330,7 @@ export function AppShell({ title, description, breadcrumbs, actions, children }:
             pathname={pathname}
             userName={userName}
             userRole={userRole}
+            rawUserRole={rawUserRole}
             notificationCount={notificationCount}
             onNavigate={() => setMobileOpen(false)}
             onLogout={handleLogout}

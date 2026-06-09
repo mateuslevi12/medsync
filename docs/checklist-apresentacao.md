@@ -12,6 +12,15 @@
 - [ ] Verificar Grafana em `http://localhost:3001`
 - [ ] Verificar que notificacoes estao funcionando
 - [ ] Separar prints de reserva
+- [ ] Kubernetes Dashboard instalado
+- [ ] Token temporario gerado
+- [ ] Dashboard acessivel em `https://localhost:8443`
+- [ ] Namespace `medsync-production` visivel
+- [ ] Pods dos microservices visiveis
+- [ ] Services visiveis
+- [ ] PVCs visiveis
+- [ ] Logs de um pod demonstraveis
+- [ ] Grafana aberto em paralelo para metricas
 - [ ] Deixar abertos os documentos:
   - `docs/entrega-final.md`
   - `docs/arquitetura-final.md`
